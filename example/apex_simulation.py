@@ -126,6 +126,7 @@ p_ds = jnp.array(p_ds.to_value(apu.m**2))
 target_pos = jnp.array(target_pos.to_value(apu.m))
 
 ####
+start = time.time()
 print("Starting computation")
 E_s_kf = jax.block_until_ready(kirchhoff_fresnel_scan(s_pos, -s_n, s_ds, E_i_kf, p_pos, wavel, chunk_size=batch_size))
 print("Integration over secondary done")
@@ -136,9 +137,29 @@ print("Integration over primary done")
 
 print("Kirchhoff-Fresnel integration took %.4f"%(time.time()-start))
 
-E_p_k = E_p_k.reshape((aperture_points, aperture_points))
 
+###generate some plots
+
+E_p_k = E_p_k.reshape((target_points, target_points))
 pow_kf_db = 20*np.log10(np.abs(E_p_k))
 phase_kf = np.rad2deg(np.angle(E_p_k))
 
+u = np.linspace(target_map_size/2, target_map_size/2, target_points)
+uv, vv = np.meshgrid(u,v)
+
+
+fig, axes = plt.subplots(2,2)
+axes[0,0].pcolormesh(uv.to_value(apu.deg), vv.to_value(apu.deg), pow_kf_db)
+axes[0,1].pcolormesh(uv.to_value(apu.deg), vv.to_value(apu.deg), phase_kf)
+
+axes[1,0].plot(u.to_value(apu.deg), np.diag(pow_kf_db)-np.max(pow_kf_db))
+axes[1,1].plot(u.to_value(apu.deg), np.diag(phase_kf))
+
+axes[0,0].set_title("Beam map dB")
+axes[0,1].set_title("Beam map phase deg")
+axes[1,0].set_title("45 cut dB")
+axes[1,1].set_title("45 cut deg")
+
+axes[1,0].grid(); axes[1,1].grid()
+plt.show()
 
