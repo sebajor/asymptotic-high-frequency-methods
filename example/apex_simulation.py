@@ -144,8 +144,8 @@ E_p_k = E_p_k.reshape((target_points, target_points))
 pow_kf_db = 20*np.log10(np.abs(E_p_k))
 phase_kf = np.rad2deg(np.angle(E_p_k))
 
-u = np.linspace(target_map_size/2, target_map_size/2, target_points)
-uv, vv = np.meshgrid(u,v)
+u = np.linspace(-target_map_size/2, target_map_size/2, target_points)
+uv, vv = np.meshgrid(u,u)
 
 
 fig, axes = plt.subplots(2,2)
