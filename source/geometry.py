@@ -2,7 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from astropy import units as apu
 from astropy import constants as cte
-import ipdb
+
+
 
 
 
@@ -52,6 +53,7 @@ def deformed_circular_reflector(xv, yv, r, params):
 
 def paraboloid_cartesian(xv, yv, focus, diameter):
     """
+        I dont like this one, the parametrization ends up being awfull
         z = x**2+y**2/(4f)
         The normal are toward the inside of the paraboloid
         ##the parametrization is not good, it looks weird
@@ -140,7 +142,6 @@ def cassegrain_cylindrical(pr_v, pt_v, sr_v, st_v,
 
         B: is the focal plane position.. in principle it will be at (0,0,B)
     """
-    ##NOTE I AM NOT SURE AT ALL OF THE RELATIONS!!!!!! MAYBE I AM MISSING SOMETHING!!
     d1 = np.max(pr_v)*2
     d2 = np.max(sr_v)*2
     F_eff = f_d*d1
@@ -165,7 +166,9 @@ def cassegrain_cylindrical(pr_v, pt_v, sr_v, st_v,
 def subreflector_cone(rv, tv, a=2796.11742*apu.mm, e=1.105262, 
                       rc=30*apu.mm, Q=0.4284*apu.mm, C=0.5504*apu.mm):
     """
-    Generates the alma subreflector
+    Generates the alma subreflector, this subreflector was made to disperse the 
+    LO coming from the cassegrain cabin to not being reflected back to the
+    instrument.
     rv>rc --> sqrt(a**2+(r**2/(e**2-1)))-a
     rv<rc --> sqrt(a**2+(r**2/(e**2-1)))-a- (Q*((rc-r)/rc)**2+C*((rc-r)/rc)**3)
     """
@@ -254,5 +257,78 @@ def cassegrain_cylindrical_cone(pr_v, pt_v, sr_v, st_v,
     return ([p_surf_pos, p_n, p_ds], [s_surf_pos, s_n, s_ds], -B, s_focus)
 
     
+
+def compute_sphere_projection(distance, angle_x, angle_y, points_x, points_y):
+    """
+    The previous functions took the antenna pointing at the z direction with 
+    the base of the antenna at the origin.
+    When you try to get the field at the distance d, if you use the standard 
+    spherical coordinates, then you will get circles (since you have to set phi=(0,2pi))
+    and worst at tetha=0 you only have one point...
+    Then the best is ot define a custom coordinate system with phi' at the plane z-x
+    and tetha' with respect y axis.
+    """
+    phi = np.linspace(-angle_x/2, angle_x/2, points_x)
+    tetha = np.linspace(np.pi/2-angle_y/2, np.pi/2+angle_y/2, points_y)
+    phi_v, tetha_v = np.meshgrid(phi, tetha)
+    z = distance*np.sin(tetha_v)*np.cos(phi_v)
+    x = distance*np.sin(tetha_v)*np.sin(phi_v)
+    y = distance*np.cos(tetha_v)
+    pos = apu.Quantity([x.flatten(), y.flatten(), z.flatten()]).T
+    return pos
+
+
+
+
+def cassegrain_silhouettes(p_pos, 
+        legs_diameter=0.2*apu.m, secondary_diameter=0.75*apu.m,
+        sigma_t=0.02, sigma_r=0.02
+        ):
+    """
+    A non-elegant way to account the blockage of the 
+    legs and subreflector is to project the silhoutte into
+    the field on the primary before computing the field 
+    in the observing target plane.
+    """
+    x = p_pos[:,0]
+    y = p_pos[:,1]
+    mask = np.zeros(p_pos.shape[0])
+    pr_v = np.sqrt(x**2+y**2)
+    ##mask the secondary
+    mask_sec = np.exp(-0.5*((pr_v-secondary_diameter/2).to_value(apu.m)/sigma_r)**2)/(2*np.pi*sigma_r)**0.5
+    mask_sec /= np.max(mask_sec)
+    ##just add this where the mask is already zero
+    mask += mask_sec
+    mask[pr_v < secondary_diameter/2] = 1
+    #make the transittion between blockage and non-block softer..
+    mask_legsx = np.exp(-0.5*((np.abs(y)-legs_diameter/2).to_value(apu.m)/sigma_t)**2)/(2*np.pi*sigma_t)**0.5
+    mask_legsx = mask_legsx/np.max(mask_legsx)
+    mask_legsy = np.exp(-0.5*((np.abs(x)-legs_diameter/2).to_value(apu.m)/sigma_t)**2)/(2*np.pi*sigma_t)**0.5
+    mask_legsy = mask_legsy/np.max(mask_legsy)
+    mask_legs = mask_legsx+mask_legsy
+    mask[pr_v>=secondary_diameter/2] += mask_legs[pr_v>=secondary_diameter/2]
+    mask[np.abs(x)< legs_diameter/2] = 1
+    mask[np.abs(y)< legs_diameter/2] = 1
+    ##for some reason we still got some superpositions
+    mask[mask>1] = 1
+    blockage = np.abs(1-mask)
+    #return mask, mask_legs, mask_sec
+    return blockage
+
+    
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
 
 
