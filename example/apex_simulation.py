@@ -123,9 +123,7 @@ wavel = wavel.to_value(apu.m)
 p_pos = jnp.array(p_pos.to_value(apu.m))
 p_n = jnp.array(p_n)
 p_ds = jnp.array(p_ds.to_value(apu.m**2))
-aperture_pos = jnp.array(aperture_pos.to_value(apu.m))
-
-
+target_pos = jnp.array(target_pos.to_value(apu.m))
 
 ####
 print("Starting computation")
