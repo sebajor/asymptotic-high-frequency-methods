@@ -85,7 +85,7 @@ def paraboloid_cylindrical(rv, tv, focus, diameter):
     zv = rv**2/(4*focus)
     surf_pos = apu.Quantity([xv.flatten(),yv.flatten(),zv.flatten()]).T
     ##compute normal vectors
-    ##The tangent vectors are then: dR/dr =     (cos(theta), sin(theta), 1/2f)
+    ##The tangent vectors are then: dR/dr =     (cos(theta), sin(theta), r/2f)
     ##                              dR/dtheta = (-rsin(theta), rcose(theta), 0)
     ##And to compute the normal vector we make dR/dr x dR/dtheta 
     ## N = (-r**2/2/f cos(theta), -r**2/2/f sin(theta), r)
@@ -314,21 +314,5 @@ def cassegrain_silhouettes(p_pos,
     blockage = np.abs(1-mask)
     #return mask, mask_legs, mask_sec
     return blockage
-
-    
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
 
 
