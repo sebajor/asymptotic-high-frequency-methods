@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from astropy import units as apu
 from astropy import constants as cte
+import ipdb
 
 
 
@@ -76,7 +77,8 @@ def paraboloid_cartesian(xv, yv, focus, diameter):
     return surf_pos, norm, ds, mask
 
 
-def paraboloid_cylindrical(rv, tv, focus, diameter): 
+def paraboloid_cylindrical(rv, tv, focus, diameter,
+                           dr=None, dt=None): 
     #in cilindrical the parametrization is:
     ## R(r,theta) = (rcos(theat), rsin(theta), r/2f)
     ###The diameter here does nothing.. I should give that at the rv
@@ -101,7 +103,11 @@ def paraboloid_cylindrical(rv, tv, focus, diameter):
     #norm = apu.Quantity([nx.flatten(),ny.flatten(),nz.flatten()]).T
     #norm = norm/np.sqrt(np.sum(norm, axis=1))
     ##this one is just magnitude of the norm vector..
-    ds = rv*np.sqrt(1+(rv/(2*focus))**2)*(rv[0,1]-rv[0,0])*(tv[1,0]-tv[0,0])
+    if(dr is None):
+        dr = rv[0,1]-rv[0,0]
+    if(dt is None):
+        dt = tv[1,0]-tv[0,0]
+    ds = rv*np.sqrt(1+(rv/(2*focus))**2)*(dt*dr)
     ds = ds.flatten()
     return surf_pos, norm, ds
 
@@ -314,5 +320,156 @@ def cassegrain_silhouettes(p_pos,
     blockage = np.abs(1-mask)
     #return mask, mask_legs, mask_sec
     return blockage
+
+
+
+
+def build_primary_with_panels(pr_v, pt_v, primary_focus, d1,
+    R       = [0.375, 1.265, 1.820, 2.605, 3.220, 4.040, 4.780, 5.435, 6.000],   ##check the first one.. I guess the hole should be smaller
+    N       = [   12,    12,    24,    24,    48,    48,    48,    48       ]
+                         ):
+    R = np.array(R)*apu.m
+    dr = pr_v[0,1]-pr_v[0,0]
+    dt = pt_v[1,0]-pt_v[0,0]
+    panel_pos = []
+    panel_n = []
+    panel_ds = []
+    panel_center = []
+    for i in range(len(R)-1):
+        r_mask = np.bitwise_and(pr_v>R[i], pr_v<R[i+1])
+        panels_angle = 2*np.pi/N[i]
+        for n in range(N[i]):
+            angle1 = np.pi/2-n*panels_angle
+            angle1 = np.arctan2(np.sin(angle1), np.cos(angle1)) ##just to be sure that is range
+            angle2 = np.pi/2-(n+1)*panels_angle
+            angle2 = np.arctan2(np.sin(angle2), np.cos(angle2))
+            if(angle1==-np.pi):
+               angle1 = np.pi
+            angle_mask = np.bitwise_and(pt_v>=angle2, pt_v<angle1)
+            panel_mask = np.bitwise_and(r_mask, angle_mask)
+            p_surf_pos, p_n, p_ds = paraboloid_cylindrical(pr_v[panel_mask], pt_v[panel_mask],
+                                                           primary_focus, d1, dr=dr, dt=dt)
+            ##the best should be add the deformation rigth here..´
+            ##
+            panel_pos.append(p_surf_pos)
+            panel_n.append(p_n)
+            panel_ds.append(p_ds)
+            r_middle = (R[i+1]+R[i])/2
+            ang_middle = (angle2+angle1)/2
+            ang_middle = np.arctan2(np.sin(ang_middle), np.cos(ang_middle))
+            p_center, _, _= paraboloid_cylindrical(apu.Quantity([r_middle,0.1*apu.m]), np.array([ang_middle,0.1]),
+                                                primary_focus, d1,dr=dr, dt=dt)
+            panel_center.append(p_center[0])
+    return panel_pos, panel_n, panel_ds, panel_center
+
+
+
+def deformed_panel_paraboloid(rv, tv, f, panel_center, dr=None, dt=None):
+    ##To make this efficeint all this should be stored in memory.. I should run this
+    ##gloablly andd then separate the panels with all the necessary values to modify them 
+    xv = rv*np.cos(tv)
+    yv = rv*np.sin(tv)
+    zv = rv**2/(4*f)
+    p0_surf = apu.Quantity([xv.flatten(), yv.flatten(), zv.flatten()]).T
+    
+    norm_factor = 1/np.sqrt(1+r**2/(4*f**2))
+    nx = -rv/(2*f)*np.cos(tv)*norm_factor
+    ny = -rv/(2*f)*np.sin(tv)*norm_factor
+    nz = norm_factor
+    n = apu.Quantity([nx.flatten(), ny.flatten(), nz.flatten()]).T
+    
+    ##ok now we build the orthogonal basis
+    er_x = np.cos(tv)*norm_factor
+    er_y = np.sin(tv)*norm_factor
+    er_z = rv/(2*f)*norm_factor
+    er = apu.Quantity([er_x.flatten(), er_y.flatten(), e_z.flatten()]).T
+
+    ep_x = -np.sin(tv)
+    ep_y = np.cos(tv)
+    ep_z = np.zeros(tv.shape)
+    ep = apu.Quantity([ep_x.flatten(), ep_y.flatten(), ep_z.flatten()]).T
+
+    ##derivates of the basis...
+    der_p_x = -np.sin(tv)*norm_factor
+    der_p_y = np.cos(tv)*norm_factor
+    der_p_z = np.zeros(tv.shape)
+    der_p = apu.Qunatity([der_p_x.flatten(), der_p_y.flatten(), der_p_z.flatten()]).T
+
+    dep_p_x = -np.cos(tv)
+    dep_p_y = -np.sin(tv)
+    de_p_z = np.zeros(tv.shape)
+    de_p = apu.Quantity([dep_p_x.flatten(), dep_p_y.flatten(), dep_p_z.flatten()]).T
+
+    d_norm = 1/(1+r**2/(4*f**2))**(1.5)
+    der_r_x = np.cos(tv)*rv/(2*f**2)*d_norm
+    der_r_y = np.sin(tv)*rv/(2*f**2)*d_norm
+    der_r_z = 1/(2*f**2)*norm_factor+ rv**2/(4*f**3)*d_norm
+    der_r = apu.Quantity([der_r_x.flatten(), der_r_y.flatten(), der_r_z.flatten()]).T
+
+    S0p = ep*rv
+    S0r = er*norm_factor
+    
+    x_ = np.sum((p0_surf-p_center)*e_r, axis=-1)
+    y_ = np.sum((p0_surf-p_center)*e_p, axis=-1)
+
+    ##TODO: I still need dn_r, dn_p
+
+    ##up to here, evrything before should be constant all the time
+    #and in principle only has to be computed a single time!
+    deformation = (params[0]+params[1]*x_+params[2]*y_+
+                    params[3]*(x_**2+y_**2)+params[4]*(x_**2-y_**2))    ##this should be scalar..
+    deform_surf = p0_surf+deformation*n
+    df_dx = params[1]+2*x_*(params[3]+params[4])
+    df_dy = parmas[2]+2*y_*(params[3]-params[4])
+    
+    S_r = S0r+df_dx*((1/norm_factor)+np.sum((p0_surf-p_center)*der_r, axis=-1))*n+deformation*dn_r
+    S_p = S0p+(np.sum((p0_surf-p_center)*(df_dx*der_p+df_dy*dep_p), axis=-1)+df_dy*rv)+deformation*dn_p
+
+    norm_deform = np.cross(S_r, S_p)
+    ds = norm_deform*dr*dt
+    norm_deform = norm_deform/np.sum(norm_deform, axis=-1)
+    return deform_surf, norm_deform, ds
+
+
+
+
+
+def get_apex_panels(p_surf_pos, p_n, p_ds):
+    """
+    Returns:
+        panel_pos: a list where every item are a single panel positions
+        panel_n:    list with the normal vector of each panel
+        panel_ds:   list with the differential area of each panel
+        panel_center: list with the central point of each panel, to be used when
+                      defining the 
+    """ 
+    R       = [0.375, 1.265, 1.820, 2.605, 3.220, 4.040, 4.780, 5.435, 6.000]   ##check the first one.. I guess the hole should be smaller
+    N       = [   12,    12,    24,    24,    48,    48,    48,    48       ]
+    ##
+    R = np.array(R)*apu.m
+    r_pos = np.sqrt(p_surf_pos[:,0]**2+p_surf_pos[:,1]**2)
+    ang_pos = np.arctan2(p_surf_pos[:,1], p_surf_pos[:,0]).to_value(apu.rad)
+    panel_pos = []
+    panel_n = []
+    panel_ds = []
+    panel_center = []
+    for i in range(len(R)-1):
+        r_mask = np.bitwise_and(r_pos>R[i], r_pos<R[i+1])
+        panels_angle = 2*np.pi/N[i]
+        for n in range(N[i]):
+            angle1 = np.pi/2-n*panels_angle
+            angle1 = np.arctan2(np.sin(angle1), np.cos(angle1)) ##just to be sure that is range
+            angle2 = np.pi/2-(n+1)*panels_angle
+            angle2 = np.arctan2(np.sin(angle2), np.cos(angle2))
+            if(angle1==-np.pi):
+               angle1 = np.pi
+            angle_mask = np.bitwise_and(ang_pos>=angle2, ang_pos<angle1)
+            panel_mask = np.bitwise_and(r_mask, angle_mask)
+            panel_pos.append(p_surf_pos[panel_mask,:])
+            panel_n.append(p_n[panel_mask,:])
+            panel_ds.append(p_ds[panel_mask])
+    return panel_pos, panel_n, panel_ds, panels_mask
+
+
 
 
