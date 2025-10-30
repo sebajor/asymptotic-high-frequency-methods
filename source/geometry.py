@@ -262,64 +262,6 @@ def cassegrain_cylindrical_cone(pr_v, pt_v, sr_v, st_v,
 
     return ([p_surf_pos, p_n, p_ds], [s_surf_pos, s_n, s_ds], -B, s_focus)
 
-    
-
-def compute_sphere_projection(distance, angle_x, angle_y, points_x, points_y):
-    """
-    The previous functions took the antenna pointing at the z direction with 
-    the base of the antenna at the origin.
-    When you try to get the field at the distance d, if you use the standard 
-    spherical coordinates, then you will get circles (since you have to set phi=(0,2pi))
-    and worst at tetha=0 you only have one point...
-    Then the best is ot define a custom coordinate system with phi' at the plane z-x
-    and tetha' with respect y axis.
-    """
-    phi = np.linspace(-angle_x/2, angle_x/2, points_x)
-    tetha = np.linspace(np.pi/2-angle_y/2, np.pi/2+angle_y/2, points_y)
-    phi_v, tetha_v = np.meshgrid(phi, tetha)
-    z = distance*np.sin(tetha_v)*np.cos(phi_v)
-    x = distance*np.sin(tetha_v)*np.sin(phi_v)
-    y = distance*np.cos(tetha_v)
-    pos = apu.Quantity([x.flatten(), y.flatten(), z.flatten()]).T
-    return pos
-
-
-
-
-def cassegrain_silhouettes(p_pos, 
-        legs_diameter=0.2*apu.m, secondary_diameter=0.75*apu.m,
-        sigma_t=0.02, sigma_r=0.02
-        ):
-    """
-    A non-elegant way to account the blockage of the 
-    legs and subreflector is to project the silhoutte into
-    the field on the primary before computing the field 
-    in the observing target plane.
-    """
-    x = p_pos[:,0]
-    y = p_pos[:,1]
-    mask = np.zeros(p_pos.shape[0])
-    pr_v = np.sqrt(x**2+y**2)
-    ##mask the secondary
-    mask_sec = np.exp(-0.5*((pr_v-secondary_diameter/2).to_value(apu.m)/sigma_r)**2)/(2*np.pi*sigma_r)**0.5
-    mask_sec /= np.max(mask_sec)
-    ##just add this where the mask is already zero
-    mask += mask_sec
-    mask[pr_v < secondary_diameter/2] = 1
-    #make the transittion between blockage and non-block softer..
-    mask_legsx = np.exp(-0.5*((np.abs(y)-legs_diameter/2).to_value(apu.m)/sigma_t)**2)/(2*np.pi*sigma_t)**0.5
-    mask_legsx = mask_legsx/np.max(mask_legsx)
-    mask_legsy = np.exp(-0.5*((np.abs(x)-legs_diameter/2).to_value(apu.m)/sigma_t)**2)/(2*np.pi*sigma_t)**0.5
-    mask_legsy = mask_legsy/np.max(mask_legsy)
-    mask_legs = mask_legsx+mask_legsy
-    mask[pr_v>=secondary_diameter/2] += mask_legs[pr_v>=secondary_diameter/2]
-    mask[np.abs(x)< legs_diameter/2] = 1
-    mask[np.abs(y)< legs_diameter/2] = 1
-    ##for some reason we still got some superpositions
-    mask[mask>1] = 1
-    blockage = np.abs(1-mask)
-    #return mask, mask_legs, mask_sec
-    return blockage
 
 
 
@@ -364,6 +306,8 @@ def build_primary_with_panels(pr_v, pt_v, primary_focus, d1,
 
 
 
+
+
 def deformed_panel_paraboloid(rv, tv, f, panel_center, dr=None, dt=None):
     ##To make this efficeint all this should be stored in memory.. I should run this
     ##gloablly andd then separate the panels with all the necessary values to modify them 
@@ -393,7 +337,7 @@ def deformed_panel_paraboloid(rv, tv, f, panel_center, dr=None, dt=None):
     der_p_x = -np.sin(tv)*norm_factor
     der_p_y = np.cos(tv)*norm_factor
     der_p_z = np.zeros(tv.shape)
-    der_p = apu.Qunatity([der_p_x.flatten(), der_p_y.flatten(), der_p_z.flatten()]).T
+    der_p = apu.Quantity([der_p_x.flatten(), der_p_y.flatten(), der_p_z.flatten()]).T
 
     dep_p_x = -np.cos(tv)
     dep_p_y = -np.sin(tv)
@@ -472,4 +416,64 @@ def get_apex_panels(p_surf_pos, p_n, p_ds):
 
 
 
+####
+####    Auxiliary functions
+####
 
+
+def compute_sphere_projection(distance, angle_x, angle_y, points_x, points_y):
+    """
+    The previous functions took the antenna pointing at the z direction with 
+    the base of the antenna at the origin.
+    When you try to get the field at the distance d, if you use the standard 
+    spherical coordinates, then you will get circles (since you have to set phi=(0,2pi))
+    and worst at tetha=0 you only have one point...
+    Then the best is ot define a custom coordinate system with phi' at the plane z-x
+    and tetha' with respect y axis.
+    """
+    phi = np.linspace(-angle_x/2, angle_x/2, points_x)
+    tetha = np.linspace(np.pi/2-angle_y/2, np.pi/2+angle_y/2, points_y)
+    phi_v, tetha_v = np.meshgrid(phi, tetha)
+    z = distance*np.sin(tetha_v)*np.cos(phi_v)
+    x = distance*np.sin(tetha_v)*np.sin(phi_v)
+    y = distance*np.cos(tetha_v)
+    pos = apu.Quantity([x.flatten(), y.flatten(), z.flatten()]).T
+    return pos
+
+
+
+
+def cassegrain_silhouettes(p_pos, 
+        legs_diameter=0.2*apu.m, secondary_diameter=0.75*apu.m,
+        sigma_t=0.02, sigma_r=0.02
+        ):
+    """
+    A non-elegant way to account the blockage of the 
+    legs and subreflector is to project the silhoutte into
+    the field on the primary before computing the field 
+    in the observing target plane.
+    """
+    x = p_pos[:,0]
+    y = p_pos[:,1]
+    mask = np.zeros(p_pos.shape[0])
+    pr_v = np.sqrt(x**2+y**2)
+    ##mask the secondary
+    mask_sec = np.exp(-0.5*((pr_v-secondary_diameter/2).to_value(apu.m)/sigma_r)**2)/(2*np.pi*sigma_r)**0.5
+    mask_sec /= np.max(mask_sec)
+    ##just add this where the mask is already zero
+    mask += mask_sec
+    mask[pr_v < secondary_diameter/2] = 1
+    #make the transittion between blockage and non-block softer..
+    mask_legsx = np.exp(-0.5*((np.abs(y)-legs_diameter/2).to_value(apu.m)/sigma_t)**2)/(2*np.pi*sigma_t)**0.5
+    mask_legsx = mask_legsx/np.max(mask_legsx)
+    mask_legsy = np.exp(-0.5*((np.abs(x)-legs_diameter/2).to_value(apu.m)/sigma_t)**2)/(2*np.pi*sigma_t)**0.5
+    mask_legsy = mask_legsy/np.max(mask_legsy)
+    mask_legs = mask_legsx+mask_legsy
+    mask[pr_v>=secondary_diameter/2] += mask_legs[pr_v>=secondary_diameter/2]
+    mask[np.abs(x)< legs_diameter/2] = 1
+    mask[np.abs(y)< legs_diameter/2] = 1
+    ##for some reason we still got some superpositions
+    mask[mask>1] = 1
+    blockage = np.abs(1-mask)
+    #return mask, mask_legs, mask_sec
+    return blockage

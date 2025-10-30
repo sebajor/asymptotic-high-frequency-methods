@@ -1,0 +1,261 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from astropy import units as apu
+from astropy import constants as cte
+from geometruy import cassegrain_silhouettes
+import ipdb
+
+def perfect_paraboloid(rv, tv, f, dr=None, dt=None):
+    """
+        This function produce a perfect paraboloid but also gives all the 
+        necessary expressions that are needed when deformining it. 
+
+        To compute the deformed  S_r and S_phi I need:
+                er, et, der_dr, der_dt, det_dt, dn_dr, dn_dt, rho, r
+        For math gibberish look at notes.
+    """
+    xv = rv*np.cos(tv)
+    yv = rv*np.sin(tv)
+    zv = rv**2/(4*f)
+    p0 = apu.Quantity((xv.flatten(), yv.flatten(), zv.flatten())).T
+    rho = np.sqrt(1+rv**2/(4*f**2))
+
+    nx = -rv*np.cos(tv)/(2*f)/rho
+    ny = -rv*np.sin(tv)/(2*f)/rho
+    nz = np.ones(rv.shape)/rho
+    n = apu.Quantity((nx.flatten(), ny.flatten(), nz.flatten())).T
+
+    if(dr is None):
+        dr = rv[0,1]-rv[0,0]
+    if(dt is None):
+        dt = tv[1,0]-tv[0,0]
+    ds = (rho*rv*dr*dt).flatten()
+    ##ok up to here is just normal stuffs
+    
+    er_x = np.cos(tv)/rho
+    er_y = np.sin(tv)/rho
+    er_z = rv/(2*f)/rho
+    
+    er = apu.Quantity((er_x.flatten(), er_y.flatten(), er_z.flatten())).T
+
+    et_x = -np.sin(tv)
+    et_y = np.cos(tv)
+    et_z = np.zeros(tv.shape)
+    et = apu.Quantity((et_x.flatten(), et_y.flatten(), et_z.flatten())).T
+
+    der_dr_x = -rv*np.cos(tv)/(4*f**2*rho**3)
+    der_dr_y = -rv*np.sin(tv)/(4*f**2*rho**3)
+    der_dr_z = 1./(2*f*rho)-rv**2/(8*f**3*rho**3)
+    der_dr = apu.Quantity((der_dr_x.flatten(), der_dr_y.flatten(), der_dr_z.flatten())).T
+
+    der_dt_x = -np.sin(tv)/rho
+    der_dt_y = np.cos(tv)/rho
+    der_dt_z = np.zeros(tv.shape)
+    der_dt = apu.Quantity((der_dt_x.flatten(), der_dt_y.flatten(), der_dt_z.flatten())).T
+
+    det_dt_x = -np.cos(tv)
+    det_dt_y = -np.sin(tv)
+    det_dt_z = np.zeros(tv.shape)
+    det_dt = apu.Quantity((det_dt_x.flatten(), det_dt_y.flatten(), det_dt_z.flatten())).T
+
+    dn_dr_x = -np.cos(tv)/(2*f*rho**3)
+    dn_dr_y = -np.sin(tv)/(2*f*rho**3)
+    dn_dr_z = -rv/(4*f**2*rho**3)
+    dn_dr = apu.Quantity((dn_dr_x.flatten(), dn_dr_y.flatten(), dn_dr_z.flatten())).T
+
+    dn_dt_x = rv*np.sin(tv)/(2*f*rho)
+    dn_dt_y = -rv*np.cos(tv)/(2*f*rho)
+    dn_dt_z = np.zeros(tv.shape)
+    dn_dt = apu.Quantity((dn_dt_x.flatten(),dn_dt_y.flatten(),dn_dt_z.flatten())).T
+
+    return p0, n, ds, er, et, der_dr, der_dt, det_dt, dn_dr, dn_dt
+
+
+def get_apex_panels(pr_v, pt_v, f, d1, 
+    R       = [0.375, 1.265, 1.820, 2.605, 3.220, 4.040, 4.780, 5.435, 6.000],   ##check the first one.. I guess the hole should be smaller
+    N       = [   12,    12,    24,    24,    48,    48,    48,    48       ],
+    blockage=True,
+    legs_diameter = 0.05*apu.m,
+    secondary_diameter=0.75/2*apu.m,
+    sigma_t=0.002,
+    sigma_r=0.002
+    ):
+    R = np.array(R)*apu.m
+    p0, n0,ds,er,et,der_dr, der_dt, det_dt, dn_dr, dn_dt = perfect_paraboloid(pr_v,pt_v,f)
+    if(blockage):
+        block = cassegrain_silhouettes(p0, 
+                                       legs_diameter=legs_diameter,
+                                       secondary_diameter=secondary_diameter,
+                                       sigma_t=sigma_t,
+                                       sigma_r=sigma_r)
+    else:
+        block = np.ones(p0.shape[0])
+    
+    r = np.sqrt(p0[:,0]**2+p0[:,1]**2)
+    phi = np.arctan2(p0[:,1],p0[:,0]).to_value(apu.rad)
+
+    panels = dict()
+    for i in range(len(R)-1):
+        r_mask = np.bitwise_and(r>R[i], r<R[i+1])
+        ring_angle = 2*np.pi/N[i]
+        for n in range(N[i]):
+            panel_name = "{:d}{:02d}".format(i+1,n+1)
+            angle1 = np.pi/2-n*ring_angle
+            angle1 = np.arctan2(np.sin(angle1), np.cos(angle1)) ##just to be sure that is range
+            angle2 = np.pi/2-(n+1)*ring_angle
+            angle2 = np.arctan2(np.sin(angle2), np.cos(angle2))
+            if(angle1==-np.pi):
+               angle1 = np.pi
+            angle_mask = np.bitwise_and(phi>=angle2, phi<angle1)
+            mask = np.bitwise_and(r_mask, angle_mask) 
+            ##compute the panel center
+            r_middle = (R[i+1]+R[i])/2
+            ang_middle = (angle2+angle1)/2
+            ang_middle = np.arctan2(np.sin(ang_middle), np.cos(ang_middle))
+            p_center = apu.Quantity([r_middle*np.cos(ang_middle), 
+                                     r_middle*np.sin(ang_middle),
+                                     r_middle**2/(4*f)])
+            ##NOTE: to play with jax I should take out the units
+            ##I could make more constant values that are being used
+            r_panel = np.sqrt(p0[mask,0]**2+p0[mask,1]**2)
+            rho_panel = np.sqrt(1+r_panel**2/(4*f**2))
+            cte_sr = rho_panel+np.sum((p0[mask,:]-p_center)*der_dr[mask,:], axis=-1)
+            cte1_st = np.sum((p0[mask,:]-p_center)*der_dt[mask,:], axis=-1)
+            cte2_st = np.sum((p0[mask,:]-p_center)*det_dt[mask,:], axis=-1)
+            x_ = np.sum((p0[mask,:]-p_center)*er[mask,:], axis=-1)
+            y_ = np.sum((p0[mask,:]-p_center)*et[mask,:], axis=-1)
+
+            panels[panel_name] = {
+                    'p0'        : p0[mask,:].to_value(apu.m),
+                    'n0'        : n0[mask,:].decompose(),
+                    'ds0'       : ds[mask].to_value(apu.m**2),
+                    's_0r'      : (er[mask,:]*rho_panel[:,None]).decompose(),
+                    's_0t'      : (et[mask,:]*r_panel[:,None]).to_value(apu.m),
+                    'dn_dr'     : dn_dr[mask,:].to_value(1/apu.m),
+                    'dn_dt'     : dn_dt[mask,:].decompose(),
+                    'x_'        : x_.to_value(apu.m),
+                    'y_'        : y_.to_value(apu.m),
+                    'cte_sr'    : cte_sr,
+                    'cte1_st'   : cte1_st.to_value(apu.m),
+                    'cte2_st'   : cte2_st.to_value(apu.m),
+                    'r'         : r_panel.to_value(apu.m),
+                    'blockage'  : block[mask]
+                    }
+            return panels
+            """
+            #debug version.. has all the parameters
+            panels[panel_name] = {
+                    'p0'        : p0[mask,:],                   ##m
+                    'n0'        : n0[mask,:],                   ##none
+                    'ds0'       : ds[mask],                     ##m**2
+                    'er'        : er[mask,:],                   ##none
+                    'et'        : et[mask,:],                   ##none
+                    'der_dr'    : der_dr[mask,:],               ##1/m
+                    'der_dt'    : der_dt[mask,:],               ##none, should be 1/rad
+                    'det_dt'    : det_dt[mask,:],               ##none, should be 1/rad
+                    'dn_dr'     : dn_dr[mask,:],                ##1/m
+                    'dn_dt'     : dn_dt[mask,:],                ##none, should be 1/rad
+                    'p_center'  : p_center                      ##m
+                    }
+            panels[panel_name]['r'] = r_panel                   ##m
+            panels[panel_name]['rho'] = rho_panel               ##none
+            panels[panel_name]['x_'] = np.sum((panels[panel_name]['p0']-panels[panel_name]['p_center'])*
+                                              panels[panel_name]['er'], axis=-1)    ##m
+            panels[panel_name]['y_'] = np.sum((panels[panel_name]['p0']-panels[panel_name]['p_center'])*
+                                              panels[panel_name]['et'], axis=-1)    ##m
+            panels[panel_name]['cte_sr'] = (panels[panel_name]['rho']+
+                                            np.sum((panels[panel_name]['p0']-
+                                                    panels[panel_name]['p_center'])*
+                                                   panels[panel_name]['der_dr'], 
+                                                   axis=-1)
+                                            )
+            panels[panel_name]['cte1_st'] = np.sum((panels[panel_name]['p0']-
+                                                    panels[panel_name]['p_center'])*
+                                                   panels[panel_name]['der_dt'], axis=-1)
+            panels[panel_name]['cte2_st'] = np.sum((panels[panel_name]['p0']-
+                                                    panels[panel_name]['p_center'])*
+                                                   panels[panel_name]['det_dt'], axis=-1)
+    return panels
+            """
+
+
+
+def deform_function(x,y, coeffs):
+    out = (coeffs[0]+coeffs[1]*x+coeffs[2]*y+
+        coeffs[3]*(x**2+y**2)+coeffs[4]*(x**2-y**2))
+    df_dx = coeffs[1]+2*(coeffs[3]+coeffs[4])*x
+    df_dy = coeffs[2]+2*(coeffs[3]-coeffs[4])*y
+    #If im not mistaken out should be in mts, df_dx and df_dy dimmensionless..
+    return out, df_dx, df_dy
+
+
+def deform_panel(panel_info, deform_coeffs):
+    """
+    Deform a posiitons.
+    panel_info is one of the panel items returned by the get_apex_panels. It is 
+    a dictionary with the following keys:
+        p0      : ideal positions of the panel from the paraboloid eq
+        n0      : ideal normal vector
+        ds0     : ideal differential surface   
+        er      : tangent vector associated with r (in cylindrical parametrization)
+        et      : tangent vector associated with phi (in cylindrical parametrization)
+        der_dr  : derivate of er w/r r
+        der_dt  : derivate of er w/r phi
+        det_dt  : derivate of et w/r phi
+        dn_dr   : derivate of the normal vector w/r r
+        dn_dt   : derivate of the normal vector w/r phi
+        p_center: center of the panel 
+        r       : r in cylindrical
+        rho     : sqrt(1+r**2/4/f**2) its the normalization for r unit vector
+        x_      : x in local coordinates of the panel (p0-p_center)\cdot e_r
+        y_      : y in local coordinates of the panel (p0-p_cneter)\cdot e_t
+
+    deform_coeffs: These are the deformation coefficients. Should be a list with
+    5 items.
+    """
+    """
+    old version
+    ##ok now we need to compute the new normal vector, and for that we need the new tangent vectors
+    s_0r = panel_info['er']*panel_info['rho'][:,None]       ##this one is dimmensionless
+    s_0t = panel_info['et']*panel_info['r'][:,None]         ##this one is mts
+    ###(rho+(p0-p_center)\cdot der_dr)  should be constant!!!
+    
+    s_r = s_0r+(df_dx*(panel_info['rho']+np.sum((panel_info['p0']-panel_info['p_center'])*
+            panel_info['der_dr'], axis=-1)))[:,None]*panel_info['n0']+\
+            deforms[:,None]*panel_info['dn_dr']
+    ###
+    ##here (p0-p_center)\cdot der_dt and (p0_pcenter)\cdot det_dt are constants!!
+    s_t = s_0t+(df_dx*np.sum((panel_info['p0']-panel_info['p_center'])*panel_info['der_dt'], axis=-1)+
+                df_dy*np.sum((panel_info['p0']-panel_info['p_center'])*panel_info['det_dt'], axis=-1)+
+                df_dy*panel_info['r'])[:,None]*panel_info['n0']+deforms[:,None]*panel_info['dn_dt']
+    """
+    deforms, df_dx, df_dy = deform_function(panel_info['x_'], panel_info['y_'], deform_coeffs)
+    p = panel_info['p0']+deforms[:,None]*panel_info['n0']
+    p = p*panel_info['blockage']
+    s_r = panel_info['s_0r']+(df_dx*panel_info['cte_sr'])[:,None]*panel_info['n0']+deforms[:,None]*panel_info['dn_dr']
+    s_t = panel_info['s_0t']+(df_dx*panel_info['cte1_st']+
+                              df_dy*(panel_info['cte2_st']+panel_info['r']))[:,None]*panel_info['n0']+\
+                            +deforms[:,None]*panel_info['dn_dt']
+                              
+    normal = np.cross(s_r, s_t)
+    normalization = np.sqrt(np.sum(normal**2, axis=-1))
+    normal = normal/normalization[:,None]
+    ds = normalization  ##still needs to be multiplied by dr and dphi
+    return p, normal, ds
+
+     
+
+
+
+    
+
+    
+
+
+
+
+
+
+
+
+
