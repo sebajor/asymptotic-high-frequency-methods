@@ -2,8 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from astropy import units as apu
 from astropy import constants as cte
-from geometruy import cassegrain_silhouettes
+from geometry import cassegrain_silhouettes, subreflector_cone
 import ipdb
+import jax
+import jax.numpy as jnp
 
 def perfect_paraboloid(rv, tv, f, dr=None, dt=None):
     """
@@ -127,22 +129,23 @@ def get_apex_panels(pr_v, pt_v, f, d1,
 
             panels[panel_name] = {
                     'p0'        : p0[mask,:].to_value(apu.m),
-                    'n0'        : n0[mask,:].decompose(),
+                    'n0'        : n0[mask,:].decompose().to_value(apu.one),
                     'ds0'       : ds[mask].to_value(apu.m**2),
-                    's_0r'      : (er[mask,:]*rho_panel[:,None]).decompose(),
+                    's_0r'      : (er[mask,:]*rho_panel[:,None]).decompose().to_value(apu.one),
                     's_0t'      : (et[mask,:]*r_panel[:,None]).to_value(apu.m),
                     'dn_dr'     : dn_dr[mask,:].to_value(1/apu.m),
-                    'dn_dt'     : dn_dt[mask,:].decompose(),
+                    'dn_dt'     : dn_dt[mask,:].decompose().to_value(apu.one),
                     'x_'        : x_.to_value(apu.m),
                     'y_'        : y_.to_value(apu.m),
-                    'cte_sr'    : cte_sr,
+                    'cte_sr'    : cte_sr.decompose().to_value(apu.one),
                     'cte1_st'   : cte1_st.to_value(apu.m),
                     'cte2_st'   : cte2_st.to_value(apu.m),
                     'r'         : r_panel.to_value(apu.m),
                     'blockage'  : block[mask]
                     }
-            return panels
-            """
+    return panels
+            
+"""
             #debug version.. has all the parameters
             panels[panel_name] = {
                     'p0'        : p0[mask,:],                   ##m
@@ -176,9 +179,76 @@ def get_apex_panels(pr_v, pt_v, f, d1,
                                                     panels[panel_name]['p_center'])*
                                                    panels[panel_name]['det_dt'], axis=-1)
     return panels
-            """
+"""
 
 
+
+def build_apex_model(pr_v, pt_v, sr_v, st_v, 
+                     primary_focus, f_d,
+                     ##cone secondary
+                     a=2796.11742*apu.mm, e=1.105262,
+                     rc=30*apu.mm, Q=0.4284*apu.mm, C=0.5504*apu.mm,
+                     #primary panels
+                     R       = [0.375, 1.265, 1.820, 2.605, 3.220, 4.040, 4.780, 5.435, 6.000],
+                     N       = [   12,    12,    24,    24,    48,    48,    48,    48       ],
+                     #blockage
+                     blockage=True,
+                     legs_diameter = 0.05*apu.m,
+                     secondary_diameter=0.75/2*apu.m,
+                     sigma_t=0.002,
+                     sigma_r=0.002
+        ):
+    """
+        returns:
+        -panels: dictionary where the keys are the panels names. Each item is other
+                 dict with the following items:
+                    -p0:    perfect paraboloid positions for the panel
+                    -n0:    normal vector of the perfect paraboloid surface
+                    -ds0:   differential surface for perfect paraboloid
+                    -s_0r:  tangential unit vector for perfect paraboloid associated with r
+                    -s_0t:  tangential unit vector for perfect paraboloid associated with phi
+                    -dn_dr: derivate of n wr r
+                    -dn_dt: derivate of n wr phi
+                    -x_:    local coordinates of the panel positions wr the panel center
+                    -y_:    local coordinates of the panel positions wr the panel center
+                    -cte_sr: cte value for Sr when deforming the panel
+                    -cte1_st: cte value for St when deforming the panel
+                    -cte2_st: cte value for St when deforming the panel
+                    -r:       r in cylindrical for the positions of the panels
+                    -blockage: the blockage of the secondary and supporting legs that is projected
+                                over the primary
+                each item of this dictionary can be used as input for the deform_panel function
+
+        -s_surf, s_n, s_ds: 
+        -B: feed position
+        -s_focus:   imaginary point behind the subreflector where the light rays joins. 
+                    Can be used if you want to use the cos(n,s) term (found that is not needed)
+    """
+    d1 = np.max(pr_v)*2
+    d2 = np.max(sr_v)*2
+    F_eff = f_d*d1
+    m = F_eff/primary_focus         ##magnification
+    c = e*a
+    b = a*np.sqrt(e**2-1)
+    z0 = primary_focus-c            ##position of the center of the hyperbola
+    z_vertex = z0+a
+
+    s_surf_pos, s_n, s_ds = subreflector_cone(sr_v, st_v, a=a, e=e,
+                      rc=rc, Q=Q, C=C)
+    s_surf_pos[:,2] += z_vertex
+    
+    panels = get_apex_panels(pr_v, pt_v, primary_focus, d1, R=R, N=N,
+                             blockage=blockage, legs_diameter=legs_diameter,
+                             sigma_t=sigma_t, sigma_r=sigma_r)
+    L = z_vertex
+    B = m*(primary_focus-L)-L       ##feed position
+    s_focus = np.sqrt(a**2+b**2)+z0    ##this is the imaginary point where the reflected points came from 
+    
+    return (panels, [s_surf_pos, s_n, s_ds], -B, s_focus)
+
+
+##ok this part should be pure jax
+def apply_panel_deformation(panels, )
 
 def deform_function(x,y, coeffs):
     out = (coeffs[0]+coeffs[1]*x+coeffs[2]*y+
@@ -242,20 +312,3 @@ def deform_panel(panel_info, deform_coeffs):
     normal = normal/normalization[:,None]
     ds = normalization  ##still needs to be multiplied by dr and dphi
     return p, normal, ds
-
-     
-
-
-
-    
-
-    
-
-
-
-
-
-
-
-
-
