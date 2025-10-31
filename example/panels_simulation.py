@@ -30,7 +30,10 @@ s = 1.05        ##oversize of the secondary
 legs_diameter = 0.05*apu.m#0.1*apu.m
 
 r_min_sec = 0.001*apu.m
-r_min_prim = 0.375*apu.m
+r_min_prim = 0.001*apu.m#0.375*apu.m    ##there is something weird in the blockage calculation if rmin
+                                        ##is big.. some nans start to pop up... 
+                                        ##having a big value here causes that several
+                                        ##points are wasted in a part that has no panels..
 r_points = 256
 t_points_primary = 512      ##angular points for the primary
 t_points_secondary = 512    ##angular points for the secondary
@@ -73,7 +76,7 @@ pr_v, pt_v = np.meshgrid(pr, p_tetha)
 sr_v, st_v = np.meshgrid(sr, s_tetha) 
 
 
-panels, (s_pos, s_n, s_ds), B, s_focus =  build_apex_model(pr_v, pt_v, sr_v, st_v, 
+panels, (s_pos0, s_n, s_ds), B, s_focus =  build_apex_model(pr_v, pt_v, sr_v, st_v, 
                      primary_focus=f1, f_d=f_d,
                      blockage=silhouette,
                      legs_diameter=legs_diameter,
@@ -84,24 +87,29 @@ panels, (s_pos, s_n, s_ds), B, s_focus =  build_apex_model(pr_v, pt_v, sr_v, st_
 
 ###ok, here we start the pure jax shit
 
-##TODO: there is a way to tell jax that this is a non-mutable array?
-panels = jax.tree_util.tree_map(jnp.array, panels)
-coeffs = generate_start_coeffs(keys, panels.keys(), start_rms=start_rms)
-i#maybe Ill have to take a look here...
-s_pos = jnp.array(s_pos)
-
-
-
-##add the defocus to the secondary
+##add the defocus to the secondary... NOTE:check if this is differentiable
+#s_pos = s_pos0+sec_offset[None, :]
 s_pos[:,0] += sec_offsets[0]
 s_pos[:,1] += sec_offsets[1]
 s_pos[:,2] += sec_offsets[2]
+
+##TODO: there is a way to tell jax that this is a non-mutable array?
+panels = jax.tree_util.tree_map(jnp.array, panels)
+coeffs = generate_start_coeffs(key, panels.keys(), start_rms=start_rms)
+#maybe Ill have to take a look here...
+s_pos = jnp.array(s_pos)
+s_n = jnp.array(s_n)
+s_ds = jnp.array(s_ds)
+
+###deformed panels
+p_pos, p_n, p_ds = apply_panel_deformation(panels, coeffs)
 
 
 ##create feed field
 source_x0 = np.array((0,0,B.to_value(apu.m))).T*apu.m
 source = cylindrical_gaussian_beam(edge_tapper, horn_aperture, 
                                     wavel, source_x0, k_hat)
+
 
 
 

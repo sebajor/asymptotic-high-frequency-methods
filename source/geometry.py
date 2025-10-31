@@ -459,7 +459,8 @@ def cassegrain_silhouettes(p_pos,
     pr_v = np.sqrt(x**2+y**2)
     ##mask the secondary
     mask_sec = np.exp(-0.5*((pr_v-secondary_diameter/2).to_value(apu.m)/sigma_r)**2)/(2*np.pi*sigma_r)**0.5
-    mask_sec /= np.max(mask_sec)
+    if(np.max(mask_sec)!=0):
+        mask_sec /= np.max(mask_sec)
     ##just add this where the mask is already zero
     mask += mask_sec
     mask[pr_v < secondary_diameter/2] = 1

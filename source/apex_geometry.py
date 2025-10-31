@@ -213,8 +213,9 @@ def build_apex_model(pr_v, pt_v, sr_v, st_v,
 ##ok this part should be pure jax
 def apply_panel_deformation(panels, coeffs):
     ##TODO: check if this is differentiable!!!
-    deform = {name: deform_panel(panels[name], coeffs[name]) for name in panels.keys()}
-    return deform
+    deform = [deform_panel(panels[name], coeffs[name]) for name in panels.keys()]
+    surface, normal,ds  = (jnp.concatenate(x, axis=0) for x in zip(*deforms))
+    return surface, normal, ds
 
 
 def generate_start_coeffs(random_key, panel_names, start_rms=1e-5):
