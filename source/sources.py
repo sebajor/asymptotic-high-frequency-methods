@@ -1,6 +1,7 @@
 import numpy as np
 from astropy import units as apu
 from astropy import constants as cte
+import jax.numpy as jnp
 #import ipdb
 
 
@@ -109,12 +110,28 @@ class cylindrical_gaussian_beam():
 
 
         
-
-
-
-
-
-
-
-
-
+def propagate_cylindrical_gaussian_beam(
+        edge_tapper, horn_aperture, wavel, origin, target_pos
+        ):
+    """
+    It does the same as the class, but in a single function to be jax friendly....
+    Also to avoid overhead it always points towards z
+    edge_tapper: should be in dB
+    horn_aperture: in mts
+    wavel:          in mts
+    origin:
+    target_positions:   jnp.array with the positions where you want to calculate the field
+    """
+    w0 = horn_aperture/jnp.sqrt(np.abs(10*np.log(10**(edge_tapper/20))))
+    z_c = jnp.pi*w0**2/wavel
+    local_pos = target_pos-origin[None, :]
+    k = 2*jnp.pi/wavel
+    w = w0*jnp.sqrt(1+(local_pos[:,2]/z_c)**2)
+    R = local_pos[:,2]+z_c**2/local_pos[:,2]
+    phi = jnp.arctan2(z_c, local_pos[:,2])
+    r2 = local_pos[:,0]**2+local_pos[:,1]**2
+    field = jnp.sqrt(2/(jnp.pi*w**2))*jnp.exp(-r2/w**2 -
+                                           1j*k*local_pos[:,2]-
+                                           1j*jnp.pi*r2/(wavel*R)+
+                                           1j*phi)
+    return field

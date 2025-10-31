@@ -109,16 +109,21 @@ horn_position = jnp.array((0,0,B.to_value(apu.m))).T
 def forward_function(coeffs, sec_offset, panels, s_pos0, s_n, s_ds, 
                     target_pos, 
                      horn_position, edge_tapper, horn_aperture,
-                     wavel, k_hat,
+                     wavel,
                      batch_size
                      ):
     s_pos = s_pos0+sec_offset[None,:]
     p_pos, p_n, p_ds = apply_panel_deformation(panels, coeffs)
-    ##TODO: set the jax version of this!
-    source = cylindrical_gaussian_beam(edge_tapper, horn_aperture, 
-                                    wavel, source_x0, k_hat)
-    E_i_kf = source.propagate(s_pos)
+    E_i_kf = propagate_cylindrical_gaussian_beam(edge_tapper, horn_aperture, wavel, 
+                                                 horn_position, s_pos)
     E_s_kf = jax.block_until_ready(kirchhoff_fresnel_scan(s_pos, -s_n, s_ds, E_i_kf, p_pos, wavel, chunk_size=batch_size))
     E_p_k = jax.block_until_ready(kirchhoff_fresnel_scan(p_pos, p_n, p_ds, E_s_kf, target_pos, wavel, chunk_size=batch_size)) 
     return E_p_k
+
+
+E = forward_function(coeffs, sec_offset, panels, s_pos, s_n, s_ds,
+                     target_pos, horn_position, edge_tapper.to_value(apu.dB),
+                     horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
+                     batch_size)
+
 
