@@ -55,10 +55,9 @@ secondary_silhouette = d2*0.5
 sigma_t = 0.002
 sigma_r = 0.002
 
-
-deformation_coeffs = np.zeros((264, 5)) ##for panels deformation
-
-
+##deformation hyperparameters
+key = jax.random.key(0)
+start_rms = 1e-4                ##this really is mu in a normal distribution
 
 ###
 ###
@@ -85,7 +84,12 @@ panels, (s_pos, s_n, s_ds), B, s_focus =  build_apex_model(pr_v, pt_v, sr_v, st_
 
 ###ok, here we start the pure jax shit
 
+##TODO: there is a way to tell jax that this is a non-mutable array?
 panels = jax.tree_util.tree_map(jnp.array, panels)
+coeffs = generate_start_coeffs(keys, panels.keys(), start_rms=start_rms)
+i#maybe Ill have to take a look here...
+s_pos = jnp.array(s_pos)
+
 
 
 ##add the defocus to the secondary
@@ -98,6 +102,7 @@ s_pos[:,2] += sec_offsets[2]
 source_x0 = np.array((0,0,B.to_value(apu.m))).T*apu.m
 source = cylindrical_gaussian_beam(edge_tapper, horn_aperture, 
                                     wavel, source_x0, k_hat)
+
 
 
 
