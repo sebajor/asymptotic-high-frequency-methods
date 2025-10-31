@@ -76,7 +76,7 @@ pr_v, pt_v = np.meshgrid(pr, p_tetha)
 sr_v, st_v = np.meshgrid(sr, s_tetha) 
 
 
-panels, (s_pos0, s_n, s_ds), B, s_focus =  build_apex_model(pr_v, pt_v, sr_v, st_v, 
+panels, (s_pos, s_n, s_ds), B, s_focus =  build_apex_model(pr_v, pt_v, sr_v, st_v, 
                      primary_focus=f1, f_d=f_d,
                      blockage=silhouette,
                      legs_diameter=legs_diameter,
@@ -85,39 +85,40 @@ panels, (s_pos0, s_n, s_ds), B, s_focus =  build_apex_model(pr_v, pt_v, sr_v, st
                      sigma_r=sigma_r
         )
 
-###ok, here we start the pure jax shit
 
-##add the defocus to the secondary... NOTE:check if this is differentiable
-#s_pos = s_pos0+sec_offset[None, :]
-s_pos[:,0] += sec_offsets[0]
-s_pos[:,1] += sec_offsets[1]
-s_pos[:,2] += sec_offsets[2]
+target_pos = compute_sphere_projection(target_distance, 
+                                       target_map_size.to_value(apu.rad),
+                                       target_map_size.to_value(apu.rad),
+                                       target_points,
+                                       target_points
+                                       )
 
-##TODO: there is a way to tell jax that this is a non-mutable array?
+sec_offset = jnp.array([x.to_value(apu.m) for x in sec_offset])
+target_pos = jnp.array(target_pos.to_value(apu.m))
+s_pos = jnp.array(s_pos.to_value(apu.m))
+
+
 panels = jax.tree_util.tree_map(jnp.array, panels)
 coeffs = generate_start_coeffs(key, panels.keys(), start_rms=start_rms)
-#maybe Ill have to take a look here...
-s_pos = jnp.array(s_pos)
-s_n = jnp.array(s_n)
-s_ds = jnp.array(s_ds)
+s_n = jnp.array(s_n.to_value(apu.one))
+s_ds = jnp.array(s_ds.to_value(apu.m**2))
 
-###deformed panels
-p_pos, p_n, p_ds = apply_panel_deformation(panels, coeffs)
+horn_position = jnp.array((0,0,B.to_value(apu.m))).T
 
-
-##create feed field
-source_x0 = np.array((0,0,B.to_value(apu.m))).T*apu.m
-source = cylindrical_gaussian_beam(edge_tapper, horn_aperture, 
+###ok, here we start the pure jax shit
+def forward_function(coeffs, sec_offset, panels, s_pos0, s_n, s_ds, 
+                    target_pos, 
+                     horn_position, edge_tapper, horn_aperture,
+                     wavel, k_hat,
+                     batch_size
+                     ):
+    s_pos = s_pos0+sec_offset[None,:]
+    p_pos, p_n, p_ds = apply_panel_deformation(panels, coeffs)
+    ##TODO: set the jax version of this!
+    source = cylindrical_gaussian_beam(edge_tapper, horn_aperture, 
                                     wavel, source_x0, k_hat)
-
-
-
-
-
-
-
-
-
-
-
+    E_i_kf = source.propagate(s_pos)
+    E_s_kf = jax.block_until_ready(kirchhoff_fresnel_scan(s_pos, -s_n, s_ds, E_i_kf, p_pos, wavel, chunk_size=batch_size))
+    E_p_k = jax.block_until_ready(kirchhoff_fresnel_scan(p_pos, p_n, p_ds, E_s_kf, target_pos, wavel, chunk_size=batch_size)) 
+    return E_p_k
 
