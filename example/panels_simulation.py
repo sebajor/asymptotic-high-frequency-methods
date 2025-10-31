@@ -30,7 +30,7 @@ s = 1.05        ##oversize of the secondary
 legs_diameter = 0.05*apu.m#0.1*apu.m
 
 r_min_sec = 0.001*apu.m
-r_min_prim = 0.375
+r_min_prim = 0.375*apu.m
 r_points = 256
 t_points_primary = 512      ##angular points for the primary
 t_points_secondary = 512    ##angular points for the secondary
