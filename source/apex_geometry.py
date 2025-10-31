@@ -144,43 +144,6 @@ def get_apex_panels(pr_v, pt_v, f, d1,
                     'blockage'  : block[mask]
                     }
     return panels
-            
-"""
-            #debug version.. has all the parameters
-            panels[panel_name] = {
-                    'p0'        : p0[mask,:],                   ##m
-                    'n0'        : n0[mask,:],                   ##none
-                    'ds0'       : ds[mask],                     ##m**2
-                    'er'        : er[mask,:],                   ##none
-                    'et'        : et[mask,:],                   ##none
-                    'der_dr'    : der_dr[mask,:],               ##1/m
-                    'der_dt'    : der_dt[mask,:],               ##none, should be 1/rad
-                    'det_dt'    : det_dt[mask,:],               ##none, should be 1/rad
-                    'dn_dr'     : dn_dr[mask,:],                ##1/m
-                    'dn_dt'     : dn_dt[mask,:],                ##none, should be 1/rad
-                    'p_center'  : p_center                      ##m
-                    }
-            panels[panel_name]['r'] = r_panel                   ##m
-            panels[panel_name]['rho'] = rho_panel               ##none
-            panels[panel_name]['x_'] = np.sum((panels[panel_name]['p0']-panels[panel_name]['p_center'])*
-                                              panels[panel_name]['er'], axis=-1)    ##m
-            panels[panel_name]['y_'] = np.sum((panels[panel_name]['p0']-panels[panel_name]['p_center'])*
-                                              panels[panel_name]['et'], axis=-1)    ##m
-            panels[panel_name]['cte_sr'] = (panels[panel_name]['rho']+
-                                            np.sum((panels[panel_name]['p0']-
-                                                    panels[panel_name]['p_center'])*
-                                                   panels[panel_name]['der_dr'], 
-                                                   axis=-1)
-                                            )
-            panels[panel_name]['cte1_st'] = np.sum((panels[panel_name]['p0']-
-                                                    panels[panel_name]['p_center'])*
-                                                   panels[panel_name]['der_dt'], axis=-1)
-            panels[panel_name]['cte2_st'] = np.sum((panels[panel_name]['p0']-
-                                                    panels[panel_name]['p_center'])*
-                                                   panels[panel_name]['det_dt'], axis=-1)
-    return panels
-"""
-
 
 
 def build_apex_model(pr_v, pt_v, sr_v, st_v, 
@@ -248,7 +211,20 @@ def build_apex_model(pr_v, pt_v, sr_v, st_v,
 
 
 ##ok this part should be pure jax
-def apply_panel_deformation(panels, )
+def apply_panel_deformation(panels, coeffs):
+    ##TODO: check if this is differentiable!!!
+    deform = {name: deform_panel(panels[name], coeffs[name]) for name in panels.keys()}
+    return deform
+
+
+def generate_start_coeffs(random_key, panel_names, start_rms=1e-5):
+    coeffs_out = dict()
+    for name in panel_names:
+        random_key, subkey = jax.random.split(random_key)
+        coeffs = jax.random.normal(subkey, shape=5)*start_rms
+        coeffs_out[name] = coeffs
+    return coeffs_out
+
 
 def deform_function(x,y, coeffs):
     out = (coeffs[0]+coeffs[1]*x+coeffs[2]*y+
@@ -267,41 +243,23 @@ def deform_panel(panel_info, deform_coeffs):
         p0      : ideal positions of the panel from the paraboloid eq
         n0      : ideal normal vector
         ds0     : ideal differential surface   
-        er      : tangent vector associated with r (in cylindrical parametrization)
-        et      : tangent vector associated with phi (in cylindrical parametrization)
-        der_dr  : derivate of er w/r r
-        der_dt  : derivate of er w/r phi
-        det_dt  : derivate of et w/r phi
+        s_0r
+        s_0t
         dn_dr   : derivate of the normal vector w/r r
         dn_dt   : derivate of the normal vector w/r phi
-        p_center: center of the panel 
-        r       : r in cylindrical
-        rho     : sqrt(1+r**2/4/f**2) its the normalization for r unit vector
         x_      : x in local coordinates of the panel (p0-p_center)\cdot e_r
         y_      : y in local coordinates of the panel (p0-p_cneter)\cdot e_t
-
+        cte_sr: cte value for Sr when deforming the panel
+        cte1_st: cte value for St when deforming the panel
+        cte2_st: cte value for St when deforming the panel
+        r:       r in cylindrical for the positions of the panels
+        blockage: the blockage of the secondary and supporting legs that is projected
+                    over the primary
     deform_coeffs: These are the deformation coefficients. Should be a list with
-    5 items.
-    """
-    """
-    old version
-    ##ok now we need to compute the new normal vector, and for that we need the new tangent vectors
-    s_0r = panel_info['er']*panel_info['rho'][:,None]       ##this one is dimmensionless
-    s_0t = panel_info['et']*panel_info['r'][:,None]         ##this one is mts
-    ###(rho+(p0-p_center)\cdot der_dr)  should be constant!!!
-    
-    s_r = s_0r+(df_dx*(panel_info['rho']+np.sum((panel_info['p0']-panel_info['p_center'])*
-            panel_info['der_dr'], axis=-1)))[:,None]*panel_info['n0']+\
-            deforms[:,None]*panel_info['dn_dr']
-    ###
-    ##here (p0-p_center)\cdot der_dt and (p0_pcenter)\cdot det_dt are constants!!
-    s_t = s_0t+(df_dx*np.sum((panel_info['p0']-panel_info['p_center'])*panel_info['der_dt'], axis=-1)+
-                df_dy*np.sum((panel_info['p0']-panel_info['p_center'])*panel_info['det_dt'], axis=-1)+
-                df_dy*panel_info['r'])[:,None]*panel_info['n0']+deforms[:,None]*panel_info['dn_dt']
+                    5 items.
     """
     deforms, df_dx, df_dy = deform_function(panel_info['x_'], panel_info['y_'], deform_coeffs)
     p = panel_info['p0']+deforms[:,None]*panel_info['n0']
-    p = p*panel_info['blockage']
     s_r = panel_info['s_0r']+(df_dx*panel_info['cte_sr'])[:,None]*panel_info['n0']+deforms[:,None]*panel_info['dn_dr']
     s_t = panel_info['s_0t']+(df_dx*panel_info['cte1_st']+
                               df_dy*(panel_info['cte2_st']+panel_info['r']))[:,None]*panel_info['n0']+\
@@ -310,5 +268,7 @@ def deform_panel(panel_info, deform_coeffs):
     normal = np.cross(s_r, s_t)
     normalization = np.sqrt(np.sum(normal**2, axis=-1))
     normal = normal/normalization[:,None]
-    ds = normalization  ##still needs to be multiplied by dr and dphi
+    ds = normalization*panel_info['blockage']   ##still needs to be multiplied by dr and dphi
+                                                ##the blockage itself should be at the E_i field
+                                                ##but the 
     return p, normal, ds

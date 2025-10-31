@@ -82,24 +82,23 @@ panels, (s_pos, s_n, s_ds), B, s_focus =  build_apex_model(pr_v, pt_v, sr_v, st_
                      sigma_t=sigma_t,
                      sigma_r=sigma_r
         )
+
+###ok, here we start the pure jax shit
+
+panels = jax.tree_util.tree_map(jnp.array, panels)
+
+
 ##add the defocus to the secondary
 s_pos[:,0] += sec_offsets[0]
 s_pos[:,1] += sec_offsets[1]
 s_pos[:,2] += sec_offsets[2]
 
 
-###modify the primary panels
-
-
-
-
-
-
-
 ##create feed field
 source_x0 = np.array((0,0,B.to_value(apu.m))).T*apu.m
 source = cylindrical_gaussian_beam(edge_tapper, horn_aperture, 
                                     wavel, source_x0, k_hat)
+
 
 
 
