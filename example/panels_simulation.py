@@ -7,6 +7,8 @@ import time
 import numpy as np
 import os
 from apex_geometry import *
+import jax
+from functools import partial
 
 ###
 ### hyperparameters
@@ -62,6 +64,9 @@ sigma_r = 0.002
 key = jax.random.key(0)
 start_rms = 1e-4                ##this really is mu in a normal distribution
 
+#
+batch_size = 256
+
 ###
 ###
 ###
@@ -93,19 +98,23 @@ target_pos = compute_sphere_projection(target_distance,
                                        target_points
                                        )
 
-sec_offset = jnp.array([x.to_value(apu.m) for x in sec_offset])
+sec_offset = jnp.array([x.to_value(apu.m) for x in sec_offsets])
 target_pos = jnp.array(target_pos.to_value(apu.m))
 s_pos = jnp.array(s_pos.to_value(apu.m))
 
 
 panels = jax.tree_util.tree_map(jnp.array, panels)
 coeffs = generate_start_coeffs(key, panels.keys(), start_rms=start_rms)
-s_n = jnp.array(s_n.to_value(apu.one))
+s_n = jnp.array(s_n)
 s_ds = jnp.array(s_ds.to_value(apu.m**2))
 
 horn_position = jnp.array((0,0,B.to_value(apu.m))).T
 
 ###ok, here we start the pure jax shit
+@partial(jax.jit,static_argnames=('chunk_size','panels','s_pos0', 's_n',
+                                  's_ds', 'target_pos', 'horn_position',
+                                  'edge_tapper', 'horn_aperture', 'wavel',
+                                  'batch_size'))
 def forward_function(coeffs, sec_offset, panels, s_pos0, s_n, s_ds, 
                     target_pos, 
                      horn_position, edge_tapper, horn_aperture,
@@ -121,9 +130,11 @@ def forward_function(coeffs, sec_offset, panels, s_pos0, s_n, s_ds,
     return E_p_k
 
 
+start = time.time()
 E = forward_function(coeffs, sec_offset, panels, s_pos, s_n, s_ds,
                      target_pos, horn_position, edge_tapper.to_value(apu.dB),
                      horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
                      batch_size)
+print("Forward function took: {:.4f}".format((time.time()-start)))
 
 
