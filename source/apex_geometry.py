@@ -266,8 +266,8 @@ def deform_panel(panel_info, deform_coeffs):
                               df_dy*(panel_info['cte2_st']+panel_info['r']))[:,None]*panel_info['n0']+\
                             +deforms[:,None]*panel_info['dn_dt']
                               
-    normal = np.cross(s_r, s_t)
-    normalization = np.sqrt(np.sum(normal**2, axis=-1))
+    normal = jnp.cross(s_r, s_t)
+    normalization = jnp.sqrt(np.sum(normal**2, axis=-1))
     normal = normal/normalization[:,None]
     ds = normalization*panel_info['blockage']   ##still needs to be multiplied by dr and dphi
                                                 ##the blockage itself should be at the E_i field

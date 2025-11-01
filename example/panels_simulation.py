@@ -111,7 +111,34 @@ s_ds = jnp.array(s_ds.to_value(apu.m**2))
 horn_position = jnp.array((0,0,B.to_value(apu.m))).T
 
 ###ok, here we start the pure jax shit
-@partial(jax.jit,static_argnames=('chunk_size','panels','s_pos0', 's_n',
+def make_forward_function(panels, s_pos0, s_n, s_ds, 
+                    target_pos, horn_position, edge_tapper, horn_aperture,
+                     wavel, batch_size):
+    @jax.jit
+    def forward_function(coeff, sec_offset):
+        s_pos = s_pos0+sec_offset[None,:]
+        p_pos, p_n, p_ds = apply_panel_deformation(panels, coeffs)
+        E_i_kf = propagate_cylindrical_gaussian_beam(edge_tapper, horn_aperture, wavel, 
+                                                     horn_position, s_pos)
+        E_s_kf = kirchhoff_fresnel_scan(s_pos, -s_n, s_ds, E_i_kf, p_pos, wavel, chunk_size=batch_size)
+        E_p_k = kirchhoff_fresnel_scan(p_pos, p_n, p_ds, E_s_kf, target_pos, wavel, chunk_size=batch_size)
+        return E_p_k
+
+
+forw_function = make_forward_function(panels, s_pos, s_n, s_ds,
+                     target_pos, horn_position, edge_tapper.to_value(apu.dB),
+                     horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
+                     batch_size)
+start = time.time()
+E = forw_function(coeffs, sec_offset)
+E_host = jax.block_until_ready(E)
+print("Forward function took: {:.4f}".format((time.time()-start)))
+
+
+"""
+
+
+@partial(jax.jit,static_argnames=('batch_size','panels','s_pos0', 's_n',
                                   's_ds', 'target_pos', 'horn_position',
                                   'edge_tapper', 'horn_aperture', 'wavel',
                                   'batch_size'))
@@ -135,6 +162,5 @@ E = forward_function(coeffs, sec_offset, panels, s_pos, s_n, s_ds,
                      target_pos, horn_position, edge_tapper.to_value(apu.dB),
                      horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
                      batch_size)
-print("Forward function took: {:.4f}".format((time.time()-start)))
 
-
+"""
