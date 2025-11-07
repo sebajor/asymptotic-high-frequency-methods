@@ -7,6 +7,7 @@ import time
 import numpy as np
 import os
 from apex_geometry import *
+from plot_utils import plot_deformations
 import jax
 from functools import partial
 
@@ -109,6 +110,14 @@ s_n = jnp.array(s_n)
 s_ds = jnp.array(s_ds.to_value(apu.m**2))
 
 horn_position = jnp.array((0,0,B.to_value(apu.m))).T
+
+
+##before running the eq solver, see the panels
+fig, ax = plot_deformations(panels, coeffs)
+ans = input('Continue?y/n')
+if(ans=='n'):
+    sys.exit()
+
 
 ###ok, here we start the pure jax shit
 def make_forward_function(panels, s_pos0, s_n, s_ds, 
