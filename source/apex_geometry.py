@@ -222,7 +222,10 @@ def generate_start_coeffs(random_key, panel_names, start_rms=1e-5):
     coeffs_out = dict()
     for name in panel_names:
         random_key, subkey = jax.random.split(random_key)
-        coeffs = jax.random.normal(subkey, shape=5)*start_rms
+        #coeffs = jax.random.normal(subkey, shape=5)*start_rms
+        coeffs = jax.random.uniform(subkey, shape=5, 
+                                    minval=-start_rms, 
+                                    maxval=start_rms)
         coeffs_out[name] = coeffs
     return coeffs_out
 

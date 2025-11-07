@@ -114,6 +114,7 @@ horn_position = jnp.array((0,0,B.to_value(apu.m))).T
 
 ##before running the eq solver, see the panels
 fig, ax = plot_deformations(panels, coeffs)
+plt.show()
 ans = input('Continue?y/n')
 if(ans=='n'):
     sys.exit()
