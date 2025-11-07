@@ -123,6 +123,7 @@ def make_forward_function(panels, s_pos0, s_n, s_ds,
         E_s_kf = kirchhoff_fresnel_scan(s_pos, -s_n, s_ds, E_i_kf, p_pos, wavel, chunk_size=batch_size)
         E_p_k = kirchhoff_fresnel_scan(p_pos, p_n, p_ds, E_s_kf, target_pos, wavel, chunk_size=batch_size)
         return E_p_k
+    return forward_function
 
 
 forw_function = make_forward_function(panels, s_pos, s_n, s_ds,
