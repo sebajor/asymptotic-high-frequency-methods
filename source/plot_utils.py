@@ -1,9 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import matplotlib.tri as tri
 
 
-def plot_deforamations(panels, coeffs, ax=None, vmin=-50*1e-6, vmax=50*1e-6):
+def plot_deformations(panels, coeffs, ax=None, vmin=-50*1e-6, vmax=50*1e-6):
     if(ax is None):
         flag = 1
         fig, ax = plt.subplots(111)
