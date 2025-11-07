@@ -31,6 +31,7 @@ defocus = [
     [7,0,0]
     ]
 
+train_dir = "train_data/"
 
 os.system("export JAX_ENABLE_X64=True")
 jax.config.update('jax_enable_x64', True)
@@ -167,7 +168,7 @@ for defoc in defocus:
     E_host = jax.block_until_ready(E)
     E_out = E_host.reshape((target_points, target_points))
     name = 'defoc_'+str(defoc[0])+'_'+str(defoc[1])+'_'+str(defoc[2])
-    np.savez(name, 
+    np.savez(os.path.join(os.path.abspath(train_dir),name),
              E = E_out,
              map_size = target_map_size,
              defocus = defoc
