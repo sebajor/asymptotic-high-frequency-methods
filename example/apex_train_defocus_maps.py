@@ -12,18 +12,26 @@ import jax
 from functools import partial
 
 ###
-### This code makes a random deformation for the panels in apex and computes the
-### corresponding beam pattern.
+### This code makes a random deformation for the panels in apex and generates
+### multiple beam maps with different defocus
 ###
 
 
-
-
-###
 ### hyperparameters
-###
+##defocus in mm
+defocus = [
+    [0,0,0],
+    [0,0,15],
+    [0,0,7],
+    [0,0,-15],
+    [0,0,-7],
+    [7,0,15],
+    [7,0,0],
+    [0,7,15],
+    [7,0,0]
+    ]
 
-#to have a proper simulation we need the jnp.complex128 representation
+
 os.system("export JAX_ENABLE_X64=True")
 jax.config.update('jax_enable_x64', True)
 
@@ -144,34 +152,27 @@ def make_forward_function(panels, s_pos0, s_n, s_ds,
     return forward_function
 
 
+
+##iteration changing the values of defocus
 forw_function = make_forward_function(panels, s_pos, s_n, s_ds,
                      target_pos, horn_position, edge_tapper.to_value(apu.dB),
                      horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
                      batch_size)
 start = time.time()
-E = forw_function(coeffs, sec_offset)
-E_host = jax.block_until_ready(E)
-print("Forward function took: {:.4f}".format((time.time()-start)))
+for defoc in defocus:
+    local_start = time.time()
+    print(defoc)
+    sec_offset = jnp.array([x*1e-3, for x in defoc])
+    E = forw_function(coeffs, sec_offset)
+    E_host = jax.block_until_ready(E)
+    E_out = E_host.reshape((target_points, target_points))
+    name = 'defoc_'+str(defoc[0])+'_'+str(defoc[1])+'_'+str(defoc[2])
+    np.savez(name, 
+             E = E_out,
+             map_size = target_map_size,
+             defocus = defoc
+             )
+    print("Forward function took: {:.4f}".format((time.time()-local_start)))
 
-##plot the resulting beam maps
-E_out = E_host.reshape((target_points, target_points))
-u = np.linspace(-target_map_size/2, target_map_size/2, target_points)
-uv, vv = np.meshgrid(u,u)
-
-power = 20*np.log10(np.abs(E_out))
-phase = np.rad2deg(np.angle(E_out))
-
-fig, axes = plt.subplots(2,2)
-axes[0,0].pcolormesh(uv.to_value(apu.deg), vv.to_value(apu.deg), np.abs(E_out))
-axes[0,1].pcolormesh(uv.to_value(apu.deg), vv.to_value(apu.deg), phase)
-
-axes[1,0].plot(u.to_value(apu.deg), power[:, target_points//2], color='darkred')
-axes[1,0].plot(u.to_value(apu.deg), np.diag(power), color='darkblue')
-axes[1,0].grid()
-
-axes[1,1].plot(u.to_value(apu.deg), phase[:, target_points//2], color='darkred')
-axes[1,1].plot(u.to_value(apu.deg), np.diag(phase), color='darkblue')
-axes[1,1].grid()
-
-plt.show()
+print("Train data generation took: {:.4f}".format((time.time()-start)))
 
