@@ -1,7 +1,7 @@
 import sys
 sys.path.append('../../source')
 from hyperparameters import *
-import kirchhoff_fresnel import *
+from kirchhoff_fresnel import *
 from sources import *
 from plot_utils import plot_deformations
 import time
@@ -48,7 +48,7 @@ def make_forward_function(panels, s_pos0, s_n, s_ds,
                                                      horn_position, s_pos)
         E_s_kf = kirchhoff_fresnel_scan(s_pos, -s_n, s_ds, E_i_kf, p_pos, wavel, chunk_size=batch_size)
         E_p_k = kirchhoff_fresnel_scan(p_pos, p_n, p_ds, E_s_kf, target_pos, wavel, chunk_size=batch_size)
-        return E_p_k, deform_mse
+        return E_p_k, deform_ms
     return forward_function
 
 
@@ -68,7 +68,7 @@ def loss_funct(coeffs, sec_offset, gold, gamma):
 
 loss_grad = jax.value_and_grad(loss_funct)
 optimizer = optax.adam(learning_rate)
-optimizer.init(coeffs)
+opt_state = optimizer.init(coeffs)
 
 
 @jax.jit

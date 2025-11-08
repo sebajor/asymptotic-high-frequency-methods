@@ -122,7 +122,7 @@ def propagate_cylindrical_gaussian_beam(
     origin:
     target_positions:   jnp.array with the positions where you want to calculate the field
     """
-    w0 = horn_aperture/jnp.sqrt(np.abs(10*np.log(10**(edge_tapper/20))))
+    w0 = horn_aperture/jnp.sqrt(jnp.abs(10*jnp.log(10**(edge_tapper/20))))
     z_c = jnp.pi*w0**2/wavel
     local_pos = target_pos-origin[None, :]
     k = 2*jnp.pi/wavel
