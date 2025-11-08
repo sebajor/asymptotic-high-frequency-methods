@@ -263,7 +263,7 @@ def deform_panel(panel_info, deform_coeffs):
                     5 items.
     """
     deforms, df_dx, df_dy = deform_function(panel_info['x_'], panel_info['y_'], deform_coeffs)
-    rms_deform = jnp.sum(deforms**2)
+    rms_deform = jnp.mean(deforms**2).reshape((-1,1))
     p = panel_info['p0']+deforms[:,None]*panel_info['n0']
     s_r = panel_info['s_0r']+(df_dx*panel_info['cte_sr'])[:,None]*panel_info['n0']+deforms[:,None]*panel_info['dn_dr']
     s_t = panel_info['s_0t']+(df_dx*panel_info['cte1_st']+

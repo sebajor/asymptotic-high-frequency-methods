@@ -8,7 +8,7 @@ import time
 import jax
 from functools import partial
 
-
+learning_rate = 1e-3
 sec_offset = [0*apu.mm, 0*apu.mm, 15*apu.mm]
 
 
@@ -51,6 +51,7 @@ def make_forward_function(panels, s_pos0, s_n, s_ds,
         return E_p_k, deform_mse
     return forward_function
 
+
 forw_function = make_forward_function(panels, s_pos, s_n, s_ds,
                      target_pos, horn_position, edge_tapper.to_value(apu.dB),
                      horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
@@ -66,6 +67,10 @@ def loss_funct(coeffs, sec_offset, gold, gamma):
 
 
 loss_grad = jax.value_and_grad(loss_funct)
+optimizer = optax.adam(learning_rate)
+optimizer.init(coeffs)
+
+
 @jax.jit
 def train_step(coeffs, opt_state, sec_offset, gold, gamma):
     loss, grads = loss_grad(coeffs, sec_offset, gold, gamma)
