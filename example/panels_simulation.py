@@ -135,7 +135,7 @@ def make_forward_function(panels, s_pos0, s_n, s_ds,
     @jax.jit
     def forward_function(coeff, sec_offset):
         s_pos = s_pos0+sec_offset[None,:]
-        p_pos, p_n, p_ds = apply_panel_deformation(panels, coeffs)
+        p_pos, p_n, p_ds, panel_ms = apply_panel_deformation(panels, coeffs)
         E_i_kf = propagate_cylindrical_gaussian_beam(edge_tapper, horn_aperture, wavel, 
                                                      horn_position, s_pos)
         E_s_kf = kirchhoff_fresnel_scan(s_pos, -s_n, s_ds, E_i_kf, p_pos, wavel, chunk_size=batch_size)

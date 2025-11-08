@@ -11,11 +11,17 @@ from plot_utils import plot_deformations
 import jax
 from functools import partial
 
+
 ###
 ### This code makes a random deformation for the panels in apex and generates
 ### multiple beam maps with different defocus
 ###
 
+def pytree_to_numpy(tree):
+    return jax.tree_util.tree_map(
+            lambda x: np.array(x) if isinstance(x, jnp.ndarray) else x,
+            tree
+            )
 
 ### hyperparameters
 ##defocus in mm
@@ -144,7 +150,7 @@ def make_forward_function(panels, s_pos0, s_n, s_ds,
     @jax.jit
     def forward_function(coeff, sec_offset):
         s_pos = s_pos0+sec_offset[None,:]
-        p_pos, p_n, p_ds = apply_panel_deformation(panels, coeffs)
+        p_pos, p_n, p_ds, panel_ms = apply_panel_deformation(panels, coeffs)
         E_i_kf = propagate_cylindrical_gaussian_beam(edge_tapper, horn_aperture, wavel, 
                                                      horn_position, s_pos)
         E_s_kf = kirchhoff_fresnel_scan(s_pos, -s_n, s_ds, E_i_kf, p_pos, wavel, chunk_size=batch_size)
@@ -159,21 +165,28 @@ forw_function = make_forward_function(panels, s_pos, s_n, s_ds,
                      target_pos, horn_position, edge_tapper.to_value(apu.dB),
                      horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
                      batch_size)
+
+os.makedirs(os.path.abspath(train_dir), exist_ok=True)
 start = time.time()
 for defoc in defocus:
     local_start = time.time()
     print(defoc)
-    sec_offset = jnp.array([x*1e-3, for x in defoc])
+    sec_offset = jnp.array([x*1e-3 for x in defoc])
     E = forw_function(coeffs, sec_offset)
     E_host = jax.block_until_ready(E)
     E_out = E_host.reshape((target_points, target_points))
     name = 'defoc_'+str(defoc[0])+'_'+str(defoc[1])+'_'+str(defoc[2])
     np.savez(os.path.join(os.path.abspath(train_dir),name),
              E = E_out,
-             map_size = target_map_size,
+             map_size = target_map_size.to_value(apu.deg),
              defocus = defoc
              )
     print("Forward function took: {:.4f}".format((time.time()-local_start)))
 
 print("Train data generation took: {:.4f}".format((time.time()-start)))
+print("save coefficients")
+
+coeffs_np = pytree_to_numpy(coeffs)
+np.savez(os.path.join(os.path.abspath(train_dir), 'coeffs'),
+         coeffs=coeffs_np)
 

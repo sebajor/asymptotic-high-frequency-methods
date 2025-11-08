@@ -214,8 +214,8 @@ def build_apex_model(pr_v, pt_v, sr_v, st_v,
 def apply_panel_deformation(panels, coeffs):
     ##TODO: check if this is differentiable!!!
     deforms = [deform_panel(panels[name], coeffs[name]) for name in panels.keys()]
-    surface, normal,ds  = (jnp.concatenate(x, axis=0) for x in zip(*deforms))
-    return surface, normal, ds
+    surface, normal,ds, rms_deform  = (jnp.concatenate(x, axis=0) for x in zip(*deforms))
+    return surface, normal, ds, rms_deform
 
 
 def generate_start_coeffs(random_key, panel_names, start_rms=1e-5):
@@ -263,6 +263,7 @@ def deform_panel(panel_info, deform_coeffs):
                     5 items.
     """
     deforms, df_dx, df_dy = deform_function(panel_info['x_'], panel_info['y_'], deform_coeffs)
+    rms_deform = jnp.sum(deforms**2)
     p = panel_info['p0']+deforms[:,None]*panel_info['n0']
     s_r = panel_info['s_0r']+(df_dx*panel_info['cte_sr'])[:,None]*panel_info['n0']+deforms[:,None]*panel_info['dn_dr']
     s_t = panel_info['s_0t']+(df_dx*panel_info['cte1_st']+
@@ -275,4 +276,4 @@ def deform_panel(panel_info, deform_coeffs):
     ds = normalization*panel_info['blockage']   ##still needs to be multiplied by dr and dphi
                                                 ##the blockage itself should be at the E_i field
                                                 ##but the 
-    return p, normal, ds
+    return p, normal, ds, rms_deform
