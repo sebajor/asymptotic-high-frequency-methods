@@ -4,9 +4,16 @@ from hyperparameters import *
 from kirchhoff_fresnel import *
 from sources import *
 from plot_utils import plot_deformations
-import time
+import time, os
 import jax
 from functools import partial
+import optax
+
+
+os.system("export JAX_ENABLE_X64=True")
+jax.config.update('jax_enable_x64', True)
+
+
 
 learning_rate = 1e-3
 sec_offset = [0*apu.mm, 0*apu.mm, 15*apu.mm]
@@ -41,7 +48,7 @@ def make_forward_function(panels, s_pos0, s_n, s_ds,
                     target_pos, horn_position, edge_tapper, horn_aperture,
                      wavel, batch_size):
     @jax.jit
-    def forward_function(coeff, sec_offset):
+    def forward_function(coeffs, sec_offset):
         s_pos = s_pos0+sec_offset[None,:]
         p_pos, p_n, p_ds, deform_ms = apply_panel_deformation(panels, coeffs)
         E_i_kf = propagate_cylindrical_gaussian_beam(edge_tapper, horn_aperture, wavel, 
