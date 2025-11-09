@@ -148,7 +148,7 @@ def make_forward_function(panels, s_pos0, s_n, s_ds,
                     target_pos, horn_position, edge_tapper, horn_aperture,
                      wavel, batch_size):
     @jax.jit
-    def forward_function(coeff, sec_offset):
+    def forward_function(coeffs, sec_offset):
         s_pos = s_pos0+sec_offset[None,:]
         p_pos, p_n, p_ds, panel_ms = apply_panel_deformation(panels, coeffs)
         E_i_kf = propagate_cylindrical_gaussian_beam(edge_tapper, horn_aperture, wavel, 
