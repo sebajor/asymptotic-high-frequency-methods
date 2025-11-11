@@ -2,6 +2,7 @@ import numpy as np
 from astropy import units as apu
 from astropy import constants as cte
 import multiprocessing
+import jax.numpy as jnp
 
 
 ###
@@ -189,4 +190,32 @@ def compute_reflected_fields_batch(surface_points,ds, Je, field_positions, wavel
     E_r = np.frombuffer(E_r, dtype=np.complex128).reshape(shape)*apu.V/apu.m
     H_r = np.frombuffer(H_r, dtype=np.complex128).reshape(shape)*apu.A/apu.m
     return E_r, H_r
+
+
+
+def induced_current(surface_normal, incident_H):
+    Je = 2*jnp.cross(surface_normal, incident_H)
+    return Je
+
+def physical_optics_single(surface_points,ds, Je, field_positions, wavel):
+    k = jnp.pi/wavel
+    R = field_positions-surface_positions
+    r = jnp.linalg.norm(R, axis=1)
+    R_hat = R / r[:, None]
+
+    phase = k*r
+    r2 = phase**2
+    r3 = phase**3
+    aux0 = Je*(-1j/phase[:, None]-1/r2[:, None]+1j/r3[:,None])
+    aux1 = (jnp.sum(Je*R_hat, axis=1)[:,None]*R_hat)*(1j/phase[:,None]+3/r2[:,None]-3*1j/r3[:,None])
+    ee = (jnp.exp(-1j*phase)[:,None]*k**2)*(aux0+aux1)*ds[:,None]
+    E = jnp.sum(ee, axis=0)
+
+    aux0 = jnp.cross(Je, R_hat)
+    aux1 = (1+1j*phase)/r2
+    he = (jnp.exp(-1j*phase)*k**2)[:,None]*aux0*aux1[:,None]*ds[:,None]
+    H = jnp.sum(he, axis=0)
+    return E, H
+
+    
 
