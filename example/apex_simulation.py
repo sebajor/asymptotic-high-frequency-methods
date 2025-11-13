@@ -115,15 +115,16 @@ else:
 
 
 ### convert the parameters into jnp avoiding units
-s_pos = jnp.array(s_pos.to_value(apu.m))
-s_n = jnp.array(s_n)
-s_ds = jnp.array(s_ds.to_value(apu.m**2))
-E_i_kf = jnp.array(E_i_kf.to_value(apu.V/apu.m))
-wavel = wavel.to_value(apu.m)
-p_pos = jnp.array(p_pos.to_value(apu.m))
-p_n = jnp.array(p_n)
-p_ds = jnp.array(p_ds.to_value(apu.m**2))
-target_pos = jnp.array(target_pos.to_value(apu.m))
+##after checking the only object that needs to be f64 is the target_positions
+s_pos = jnp.array(s_pos.to_value(apu.m)).astype(jnp.float32)
+s_n = jnp.array(s_n).astype(jnp.float32)
+s_ds = jnp.array(s_ds.to_value(apu.m**2)).astype(jnp.float32)
+E_i_kf = jnp.array(E_i_kf.to_value(apu.V/apu.m)).astype(jnp.float32)
+wavel = jnp.float32(wavel.to_value(apu.m))
+p_pos = jnp.array(p_pos.to_value(apu.m)).astype(jnp.float32)
+p_n = jnp.array(p_n).astype(jnp.float32)
+p_ds = jnp.array(p_ds.to_value(apu.m**2)).astype(jnp.float32)
+target_pos = jnp.array(target_pos.to_value(apu.m)).astype(jnp.float32)
 
 ####
 start = time.time()

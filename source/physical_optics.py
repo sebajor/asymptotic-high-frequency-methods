@@ -193,7 +193,7 @@ def compute_reflected_fields_batch(surface_points,ds, Je, field_positions, wavel
 
 
 
-def induced_current(surface_normal, incident_H):
+def induced_current_jax(surface_normal, incident_H):
     Je = 2*jnp.cross(surface_normal, incident_H)
     return Je
 
@@ -217,5 +217,29 @@ def physical_optics_single(surface_points,ds, Je, field_positions, wavel):
     H = jnp.sum(he, axis=0)
     return E, H
 
+def physical_optics_scan(surface_points, surface_normal, ds, incident_H, 
+                         target_points, wavel, chunk_size):
+    Je = induced_current_jax(surface_normal, incident_H)
     
+    n_points = target_points.shape[0]
+    n_chunks = n_points//chunk_size
+    po_vmap = jax.vmap(physical_optics_single, in_axes=(None, None, None, 0, None))
+
+    def body_fun(carry, idx):
+        start = idx*chunk_size
+        field_batch = lax.dynamic_slice(target_points, (start,0), (chunk_size, 3))
+        E_batch, H_batch = po_vmap(surfacce_point, ds, Je, field_batch, wavel)
+        ###how do I use update_slice with E_bathc and H_batch at the same time!
+        carry = lax.dynamic_update(carry, E_batch, (start,))
+        return carry, None
+    result_init = jnp.zeros(n_points, dtype=jnp.complex128)
+    results, = lax.scan(body_fun, result_init, jnp.arange(n_chunks))
+    return results
+
+
+
+
+
+
+
 

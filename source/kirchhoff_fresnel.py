@@ -200,9 +200,10 @@ def kirchhoff_fresnel_single(surface_points, surface_normal, ds, incident_E, fie
     return E_r
 
 
-@partial(jax.jit,static_argnames=('chunk_size',))
+@partial(jax.jit,static_argnames=('chunk_size','dtype'))
 def kirchhoff_fresnel_scan(surface_points, surface_normal, ds, incident_E,
-                           field_positions, wavel, chunk_size=2048):
+                           field_positions, wavel, chunk_size=2048,
+                           dtype=jnp.complex128):
     """
     This implementation generates the batches with the lax.scan, and in each batch
     the GPU is being used with the vmaped version of the single point (ie each
@@ -222,9 +223,38 @@ def kirchhoff_fresnel_scan(surface_points, surface_normal, ds, incident_E,
         carry = lax.dynamic_update_slice(carry, E_batch, (start,))
         return carry, None
 
-    result_init = jnp.zeros(n_points, dtype=jnp.complex128)
+    result_init = jnp.zeros(n_points, dtype=dtype)
     result, _ = lax.scan(body_fun, result_init, jnp.arange(n_chunks))
     return result
 
+
+
+@partial(jax.jit,static_argnames=('chunk_size','dtype'))
+def kirchhoff_fresnel_scan_remat(surface_points, surface_normal, ds, incident_E,
+                           field_positions, wavel, chunk_size=2048,
+                                 dtype=jnp.complex128):
+    """
+    This implementation generates the batches with the lax.scan, and in each batch
+    the GPU is being used with the vmaped version of the single point (ie each
+    batch is solved in a vectorized way).
+    """
+    n_points = field_positions.shape[0]
+    n_chunks = n_points//chunk_size
+    kf_remat = jax.remat(kirchhoff_fresnel_single)
+    kf_vmap = jax.vmap(kf_remat, in_axes=(None, None, None, None, 0, None))
+
+    def body_fun(carry, idx):
+        start = idx * chunk_size
+        field_batch = lax.dynamic_slice(field_positions, (start, 0), (chunk_size, 3))
+
+        # compute E_r for each point in this batch in parallel,
+        #should I use block_until??
+        E_batch = kf_vmap(surface_points, surface_normal, ds, incident_E, field_batch, wavel)
+        carry = lax.dynamic_update_slice(carry, E_batch.astype(dtype), (start,))
+        return carry, None
+
+    result_init = jnp.zeros(n_points, dtype=dtype)
+    result, _ = lax.scan(body_fun, result_init, jnp.arange(n_chunks))
+    return result
 
 
