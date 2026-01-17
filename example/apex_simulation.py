@@ -119,21 +119,23 @@ else:
 s_pos = jnp.array(s_pos.to_value(apu.m)).astype(jnp.float32)
 s_n = jnp.array(s_n).astype(jnp.float32)
 s_ds = jnp.array(s_ds.to_value(apu.m**2)).astype(jnp.float32)
-E_i_kf = jnp.array(E_i_kf.to_value(apu.V/apu.m)).astype(jnp.float32)
+E_i_kf = jnp.array(E_i_kf.to_value(apu.V/apu.m)).astype(jnp.complex64)
 wavel = jnp.float32(wavel.to_value(apu.m))
 p_pos = jnp.array(p_pos.to_value(apu.m)).astype(jnp.float32)
 p_n = jnp.array(p_n).astype(jnp.float32)
 p_ds = jnp.array(p_ds.to_value(apu.m**2)).astype(jnp.float32)
-target_pos = jnp.array(target_pos.to_value(apu.m)).astype(jnp.float32)
+target_pos = jnp.array(target_pos.to_value(apu.m))
 
 ####
 start = time.time()
 print("Starting computation")
-E_s_kf = jax.block_until_ready(kirchhoff_fresnel_scan(s_pos, -s_n, s_ds, E_i_kf, p_pos, wavel, chunk_size=batch_size))
+E_s_kf = jax.block_until_ready(kirchhoff_fresnel_scan(s_pos, -s_n, s_ds, E_i_kf, p_pos,
+                                                      wavel, chunk_size=batch_size))
 print("Integration over secondary done")
 E_s_kf_block = E_s_kf*mask
 
-E_p_k = jax.block_until_ready(kirchhoff_fresnel_scan(p_pos, p_n, p_ds, E_s_kf_block, target_pos, wavel, chunk_size=batch_size)) 
+E_p_k = jax.block_until_ready(kirchhoff_fresnel_scan(p_pos, p_n, p_ds, E_s_kf_block, target_pos,
+                                                     wavel, chunk_size=batch_size)) 
 print("Integration over primary done")
 
 print("Kirchhoff-Fresnel integration took %.4f"%(time.time()-start))

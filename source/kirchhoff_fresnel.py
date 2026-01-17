@@ -220,7 +220,7 @@ def kirchhoff_fresnel_scan(surface_points, surface_normal, ds, incident_E,
         # compute E_r for each point in this batch in parallel,
         #should I use block_until??
         E_batch = kf_vmap(surface_points, surface_normal, ds, incident_E, field_batch, wavel)
-        carry = lax.dynamic_update_slice(carry, E_batch, (start,))
+        carry = lax.dynamic_update_slice(carry, E_batch.astype(dtype), (start,))
         return carry, None
 
     result_init = jnp.zeros(n_points, dtype=dtype)

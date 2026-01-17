@@ -31,11 +31,11 @@ panels, s_pos, s_n, s_ds, B, target_pos = create_apex_geometries(r_min_prim, d1,
 
 #convert the data into jnp arrays
 
-sec_offset = jnp.array([x.to_value(apu.m) for x in sec_offsets]).astype(jnp.float32)
+sec_offset = jnp.array([x.to_value(apu.m) for x in sec_offset]).astype(jnp.float32)
 s_pos = jnp.array(s_pos.to_value(apu.m)).astype(jnp.float32)
 target_pos = jnp.array(target_pos.to_value(apu.m)).astype(jnp.float64)
 
-panels = jax.tree_util.tree_map(lambda:x jnp.array(x, dtype=jnp.float32), panels)
+panels = jax.tree_util.tree_map(lambda x: jnp.array(x, dtype=jnp.float32), panels)
 coeffs = generate_start_coeffs(key, panels.keys(), start_rms=start_rms, dtype=jnp.float32)
 s_n = jnp.array(s_n).astype(jnp.float32)
 s_ds = jnp.array(s_ds.to_value(apu.m**2)).astype(jnp.float32)
