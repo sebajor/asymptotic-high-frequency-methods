@@ -80,8 +80,7 @@ def get_apex_panels(pr_v, pt_v, f, d1,
     legs_diameter = 0.05*apu.m,
     secondary_diameter=0.75/2*apu.m,
     sigma_t=0.002,
-    sigma_r=0.002,
-    batch_size=None
+    sigma_r=0.002
     ):
     R = np.array(R)*apu.m
     p0, n0,ds,er,et,der_dr, der_dt, det_dt, dn_dr, dn_dt = perfect_paraboloid(pr_v,pt_v,f)
@@ -98,7 +97,6 @@ def get_apex_panels(pr_v, pt_v, f, d1,
     phi = np.arctan2(p0[:,1],p0[:,0]).to_value(apu.rad)
 
     panels = dict()
-    panels_points = 0
     for i in range(len(R)-1):
         r_mask = np.bitwise_and(r>R[i], r<R[i+1])
         ring_angle = 2*np.pi/N[i]
@@ -129,7 +127,6 @@ def get_apex_panels(pr_v, pt_v, f, d1,
             x_ = np.sum((p0[mask,:]-p_center)*er[mask,:], axis=-1)
             y_ = np.sum((p0[mask,:]-p_center)*et[mask,:], axis=-1)
 
-            panels_points += np.sum(mask)
             panels[panel_name] = {
                     'p0'        : p0[mask,:].to_value(apu.m),
                     'n0'        : n0[mask,:].decompose().to_value(apu.one),
@@ -146,28 +143,6 @@ def get_apex_panels(pr_v, pt_v, f, d1,
                     'r'         : r_panel.to_value(apu.m),
                     'blockage'  : block[mask]
                     }
-        if(batch_size is None):
-            print("You set batch_size to None, be carefull since if the points does not fit\
-                    the batches they will not enter to the integral!")
-        else:
-            remain = batch_size-panels_points%batch_size
-            panels['fake'] = {
-                    'p0'        : np.random.random((remain, 3)),
-                    'n0'        : np.random.random((remain, 3)),
-                    'ds0'       : np.zeros(remain),
-                    's_0r'      : np.random.random((remain, 3)),
-                    's_0t'      : np.random.random((remain, 3)),
-                    'dn_dr'     : np.random.random((remain, 3)),
-                    'dn_dt'     : np.random.random((remain, 3)),
-                    'x_'        : np.random.random(remain),
-                    'y_'        : np.random.random(remain),
-                    'cte_sr'    : np.random.random(remain),
-                    'cte1_st'   : np.random.random(remain),
-                    'cte2_st'   : np.random.random(remain),
-                    'r'         : np.random.random(remain),
-                    'blockage'  : np.zeros(remain)
-            }
-
     return panels
 
 
@@ -184,8 +159,7 @@ def build_apex_model(pr_v, pt_v, sr_v, st_v,
                      legs_diameter = 0.05*apu.m,
                      secondary_diameter=0.75/2*apu.m,
                      sigma_t=0.002,
-                     sigma_r=0.002,
-                     batch_size=None
+                     sigma_r=0.002
         ):
     """
         returns:
@@ -228,9 +202,7 @@ def build_apex_model(pr_v, pt_v, sr_v, st_v,
     
     panels = get_apex_panels(pr_v, pt_v, primary_focus, d1, R=R, N=N,
                              blockage=blockage, legs_diameter=legs_diameter,
-                             sigma_t=sigma_t, sigma_r=sigma_r,
-                             batch_size=batch_size
-                             )
+                             sigma_t=sigma_t, sigma_r=sigma_r)
     L = z_vertex
     B = m*(primary_focus-L)-L       ##feed position
     s_focus = np.sqrt(a**2+b**2)+z0    ##this is the imaginary point where the reflected points came from 

@@ -1,5 +1,5 @@
 import sys
-sys.path.append('../source')
+sys.path.append('../../source')
 from geometry import *
 from kirchhoff_fresnel import *
 from sources import *
@@ -39,6 +39,7 @@ defocus = [
 
 train_dir = "train_data/"
 
+#test
 os.system("export JAX_ENABLE_X64=True")
 jax.config.update('jax_enable_x64', True)
 
@@ -76,7 +77,8 @@ sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
 ##
 target_distance = 1835*apu.m
 target_map_size = 3*apu.deg     ##size of the map
-target_points = 513
+#target_points = 513
+target_points = 256
 
 ## if add the blockage of the legs and secondary
 silhouette = True
@@ -85,7 +87,7 @@ sigma_t = 0.002
 sigma_r = 0.002
 
 ##deformation hyperparameters
-key = jax.random.key(0)
+key = jax.random.key(np.random.randint(1e5))
 start_rms = 60*1e-6                ##this really is mu in a normal distribution
 
 #
@@ -111,7 +113,8 @@ panels, (s_pos, s_n, s_ds), B, s_focus =  build_apex_model(pr_v, pt_v, sr_v, st_
                      legs_diameter=legs_diameter,
                      secondary_diameter=secondary_silhouette,
                      sigma_t=sigma_t,
-                     sigma_r=sigma_r
+                     sigma_r=sigma_r,
+                     batch_size=batch_size
         )
 
 

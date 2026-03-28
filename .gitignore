@@ -3,6 +3,13 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+#dont save images
+example/apex_panelfit/images*
+example/apex_panelfit/*.png
+
+#dont save .swp
+*.swp
+
 #save data
 *.npz
 
