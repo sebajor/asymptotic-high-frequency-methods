@@ -21,7 +21,9 @@ sec_offset = [0*apu.mm, 0*apu.mm, 0*apu.mm]
 ##since the values should be in the 1e-6, then the mse will be in 1e-12! 
 #gamma = 5*1e10
 gamma = 5*1e7
+gold_file = "train_data/defoc_0_0_0.npz"    ##this is a fake data generated
 
+iters = 600
 
 panels, s_pos, s_n, s_ds, B, target_pos = create_apex_geometries(r_min_prim, d1, r_points, 
                       r_min_sec, d2, 
@@ -128,6 +130,32 @@ def train_step(coeffs, opt_state, sec_offset, gold, gamma):
     updates, opt_state = optimizer.update(grads, opt_state, coeffs)
     coeffs = optax.apply_updates(coeffs, updates)
     return coeffs, opt_state, loss
+
+
+print("Training loop")
+f = np.load(gold_file, allow_pickle=1)
+E = jnp.array(f['E'])
+losses = []
+
+train_request = input("Do you want to start the train?")
+if(train_request!= 'y'):
+    sys.exit()
+
+
+for i in range(iters):
+    start = time.time()
+    coeffs, opt_state, loss = train_step(coeffs, opt_state, sec_offset,E.flatten(), gamma)
+    losses.append(loss)
+    print("iter:%i/t loss:%.3f/t time:%.3f "%(i, loss, time.time()-start))
+    if((i%10) == 0):
+        fig, ax = plt.subplots(figsize=(10,10))
+        plot_deformations(panels, coeffs,ax=ax, correct_global=0)
+        ax.set_title("iteration "+str(i))
+        fig.savefig('images/'+str(i), dpi=100)
+        plt.close(fig)
+
+plot_deformations(panels, coeffs)
+
 
 
 
