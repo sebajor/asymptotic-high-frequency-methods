@@ -1,5 +1,5 @@
 from apex_geometry import *
-from scipy import optimization
+from scipy import optimize
 from scipy import interpolate
 from astropy import units as apu
 
@@ -23,9 +23,17 @@ def plane_deform(x, params):
     ###this deforamtion is weird, the units dont match...
     return z
 
+def plane_fit(params, data, xv, yv, fit_func=plane):
+    xv = xv.to_value(apu.m)
+    yv = yv.to_value(apu.m)
+    data = data.to_value(apu.um)
+    plane_model = fit_func((xv,yv), params)
+    error = np.abs(plane_model-data)
+    return error
 
-def APEX_panel_area(panelid, x, y, x
-                    panel_x, panel_y
+
+def APEX_panel_area(panelid, x, y,
+                    panel_x, panel_y,
                     dr=0*apu.m, dtheta=0*apu.rad):
     """
     panelid:
@@ -93,21 +101,48 @@ def compatiblity_panel_fit(surface_error, xv, yv, panels, fit_func=plane_deform,
     coeffs = dict()
     x = xv[0,:].to_value(apu.m)
     y = yv[:,0].to_value(apu.m)
-    interp = interpolate.RegularGridInterpolator((x,y), surface_error)
+    interp = interpolate.RegularGridInterpolator((x,y), surface_error.to_value(apu.um))
 
     for panel_name, panel_info in panels.items():
+        p_x, p_y, p_z = panel['p0'].T
         p_mask, r_mask, pytree_mask  = APEX_panel_area(
-                panel, xv, yv, dr=dr,
+                int(panel_name), xv, yv,
+                p_x*apu.m, p_y*apu.m
+                dr=dr,
                 dtheta=dtheta/n
                 )
-        x_fit = xv[p_mask].flatten()
-        y_fit = yv[p_mask].flatten()
-        z = surface_error[p_mask].flatten()
+        x_fit = xv[p_mask].to_value(apu.m).flatten()
+        y_fit = yv[p_mask].to_value(apu.m).flatten()
+        z = surface_error[p_mask].to_value(apu.um).flatten()
+        interp = interpolate.RegularGridInterpolator((x_fit, y_fit), z)
         ##Since the sampling wont match we need to interpolate the data
-        p_x, p_y, p_z = panel['p0'].T
         p_x = p_x[pytree_mask]
         p_y = p_y[pytree_mask]
         p_z_interp = interp(np.array(p_x, p_y))
+        ##ok, now we can do the fitting in the panels local coordinate
+        x_ = panel['x_'][pytree_mask]
+        y_ = panel['y_'][pytree_mask]
+        params = np.zeros(5)
+        res_lsq = optimize.least_squares(
+                fun=plane_fit,
+                x0=params,
+                args=(
+                    p_z_interp,
+                    x_,
+                    y_,
+                    fit_func
+                    ),
+                method='trf',
+                tr_solver='exact',
+                loss='linear'
+                )
+        par = res_lsq.x
+        coeffs[panel_name] = np.array(par)
+    return coeffs
+
+
+
+
 
         
 
