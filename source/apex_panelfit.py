@@ -23,7 +23,7 @@ def plane_deform(x, params):
     ###this deforamtion is weird, the units dont match...
     return z
 
-def plane_fit(params, data, xv, yv, fit_func=plane):
+def plane_fit(params, data, xv, yv, fit_func=plane_deform):
     xv = xv.to_value(apu.m)
     yv = yv.to_value(apu.m)
     data = data.to_value(apu.um)
@@ -103,11 +103,13 @@ def compatiblity_panel_fit(surface_error, xv, yv, panels, fit_func=plane_deform,
     y = yv[:,0].to_value(apu.m)
     interp = interpolate.RegularGridInterpolator((x,y), surface_error.to_value(apu.um))
 
-    for panel_name, panel_info in panels.items():
+    for panel_name, panel in panels.items():
         p_x, p_y, p_z = panel['p0'].T
+        ring = int(panel/100)
+        n = N[ring-1]
         p_mask, r_mask, pytree_mask  = APEX_panel_area(
                 int(panel_name), xv, yv,
-                p_x*apu.m, p_y*apu.m
+                p_x*apu.m, p_y*apu.m,
                 dr=dr,
                 dtheta=dtheta/n
                 )
@@ -139,24 +141,3 @@ def compatiblity_panel_fit(surface_error, xv, yv, panels, fit_func=plane_deform,
         par = res_lsq.x
         coeffs[panel_name] = np.array(par)
     return coeffs
-
-
-
-
-
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
