@@ -102,10 +102,11 @@ def compatiblity_panel_fit(surface_error, xv, yv, panels, fit_func=plane_deform,
     x = xv[0,:].to_value(apu.m)
     y = yv[:,0].to_value(apu.m)
     interp = interpolate.RegularGridInterpolator((x,y), surface_error.to_value(apu.um))
+    N = [12, 12,24,24,48,48,48,48]  ##panels per ring
 
     for panel_name, panel in panels.items():
         p_x, p_y, p_z = panel['p0'].T
-        ring = int(panel/100)
+        ring = int(int(pane_namel)/100)
         n = N[ring-1]
         p_mask, r_mask, pytree_mask  = APEX_panel_area(
                 int(panel_name), xv, yv,
