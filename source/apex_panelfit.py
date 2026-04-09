@@ -24,9 +24,9 @@ def plane_deform(x, params):
     return z
 
 def plane_fit(params, data, xv, yv, fit_func=plane_deform):
-    xv = xv.to_value(apu.m)
-    yv = yv.to_value(apu.m)
-    data = data.to_value(apu.um)
+    xv = xv
+    yv = yv
+    data = data
     plane_model = fit_func((xv,yv), params)
     error = np.abs(plane_model-data)
     return error
@@ -99,14 +99,17 @@ def compatiblity_panel_fit(surface_error, xv, yv, panels, fit_func=plane_deform,
     panel area and the interpolate the missing samples before doing anything
     """
     coeffs = dict()
+    fit_surf = dict()
     x = xv[0,:].to_value(apu.m)
     y = yv[:,0].to_value(apu.m)
     interp = interpolate.RegularGridInterpolator((x,y), surface_error.to_value(apu.um))
     N = [12, 12,24,24,48,48,48,48]  ##panels per ring
 
     for panel_name, panel in panels.items():
+        if(panel_name == 'fake'):
+            continue
         p_x, p_y, p_z = panel['p0'].T
-        ring = int(int(pane_namel)/100)
+        ring = int(int(panel_name)/100)
         n = N[ring-1]
         p_mask, r_mask, pytree_mask  = APEX_panel_area(
                 int(panel_name), xv, yv,
@@ -117,7 +120,7 @@ def compatiblity_panel_fit(surface_error, xv, yv, panels, fit_func=plane_deform,
         x_fit = xv[p_mask].to_value(apu.m).flatten()
         y_fit = yv[p_mask].to_value(apu.m).flatten()
         z = surface_error[p_mask].to_value(apu.um).flatten()
-        interp = interpolate.RegularGridInterpolator((x_fit, y_fit), z)
+        #interp = interpolate.RegularGridInterpolator((x_fit, y_fit), z)
         ##Since the sampling wont match we need to interpolate the data
         p_x = p_x[pytree_mask]
         p_y = p_y[pytree_mask]
@@ -141,4 +144,6 @@ def compatiblity_panel_fit(surface_error, xv, yv, panels, fit_func=plane_deform,
                 )
         par = res_lsq.x
         coeffs[panel_name] = np.array(par)
-    return coeffs
+        model = fit_func(x_, y_, par)
+        fit_surf[panel_name] = model
+    return coeffs, fit_surf
