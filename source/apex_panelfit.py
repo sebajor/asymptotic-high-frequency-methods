@@ -124,7 +124,7 @@ def compatiblity_panel_fit(surface_error, xv, yv, panels, fit_func=plane_deform,
         ##Since the sampling wont match we need to interpolate the data
         p_x = p_x[pytree_mask]
         p_y = p_y[pytree_mask]
-        p_z_interp = interp(np.array(p_x, p_y))
+        p_z_interp = interp((p_x, p_y))
         ##ok, now we can do the fitting in the panels local coordinate
         x_ = panel['x_'][pytree_mask]
         y_ = panel['y_'][pytree_mask]
