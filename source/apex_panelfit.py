@@ -144,6 +144,6 @@ def compatiblity_panel_fit(surface_error, xv, yv, panels, fit_func=plane_deform,
                 )
         par = res_lsq.x
         coeffs[panel_name] = np.array(par)
-        model = fit_func(x_, y_, par)
+        model = fit_func((x_, y_), par)
         fit_surf[panel_name] = model
     return coeffs, fit_surf

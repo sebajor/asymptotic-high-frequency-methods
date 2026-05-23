@@ -421,7 +421,7 @@ def get_apex_panels(p_surf_pos, p_n, p_ds):
 ####
 
 
-def compute_sphere_projection(distance, angle_x, angle_y, points_x, points_y):
+def compute_sphere_projection(distance, angle_x, angle_y, points_x, points_y, endpoint=True):
     """
     The previous functions took the antenna pointing at the z direction with 
     the base of the antenna at the origin.
@@ -431,8 +431,8 @@ def compute_sphere_projection(distance, angle_x, angle_y, points_x, points_y):
     Then the best is ot define a custom coordinate system with phi' at the plane z-x
     and tetha' with respect y axis.
     """
-    phi = np.linspace(-angle_x/2, angle_x/2, points_x)
-    tetha = np.linspace(np.pi/2-angle_y/2, np.pi/2+angle_y/2, points_y)
+    phi = np.linspace(-angle_x/2, angle_x/2, points_x, endpoint=endpoint)
+    tetha = np.linspace(np.pi/2-angle_y/2, np.pi/2+angle_y/2, points_y, endpoint=endpoint)
     phi_v, tetha_v = np.meshgrid(phi, tetha)
     z = distance*np.sin(tetha_v)*np.cos(phi_v)
     x = distance*np.sin(tetha_v)*np.sin(phi_v)

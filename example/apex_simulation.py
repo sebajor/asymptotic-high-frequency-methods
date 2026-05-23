@@ -29,9 +29,9 @@ s = 1.05        ##oversize of the secondary
 legs_diameter = 0.05*apu.m#0.1*apu.m
 
 r_min = 0.001*apu.m
-r_points = 256
-t_points_primary = 512      ##angular points for the primary
-t_points_secondary = 512    ##angular points for the secondary
+r_points = 1024#256
+t_points_primary = 2048#1024#512      ##angular points for the primary
+t_points_secondary = 1024#512    ##angular points for the secondary
 
 ##gaussian beam feed horn
 edge_tapper = -5*apu.dB
@@ -41,11 +41,15 @@ k_hat = np.array((0,0,1))
 ##offset of the secondary from nominal position (this should be a parameter, when optimizing)
 #sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
 sec_offsets = [0*apu.mm, 0*apu.mm, +15*apu.mm]
+#sec_offsets = [2.4*apu.mm, -8.5*apu.mm, +15*apu.mm]
 
 ##
 target_distance = 1835*apu.m
-target_map_size = 3*apu.deg     ##size of the map
-target_points = 513
+#target_map_size = 3*apu.deg     ##size of the map
+target_map_size = 42*256*apu.arcsec##size of the map
+#target_points = 513
+target_points = 256
+endpoint = False#True
 
 ## if add the blockage of the legs and secondary
 silhouette = True
@@ -73,6 +77,9 @@ sr_v, st_v = np.meshgrid(sr, s_tetha)
 (p_pos, p_n, p_ds), (s_pos, s_n, s_ds), B, s_focus = cassegrain_cylindrical_cone(pr_v, pt_v, sr_v, st_v,
                            f1, f_d)
 
+#(p_pos, p_n, p_ds), (s_pos, s_n, s_ds), B, s_focus = cassegrain_cylindrical(pr_v, pt_v, sr_v, st_v,
+#                           f1, f_d)
+
 
 ##add the defocus to the secondary
 s_pos[:,0] += sec_offsets[0]
@@ -92,12 +99,14 @@ target_pos = compute_sphere_projection(target_distance,
                                        target_map_size.to_value(apu.rad),
                                        target_map_size.to_value(apu.rad),
                                        target_points,
-                                       target_points
+                                       target_points,
+                                       endpoint=endpoint
                                        )
 
 ### generate mask to emulate the blockage.. only if silhouette=True
 if(silhouette):
-    """
+    """,
+    endpoint=endpoint
     ##this is the most basic mask..since it has strong discontinuities generates
     ##sinc like structures
     #mask = np.ones(p_pos.shape[0], dtype=bool)
@@ -147,7 +156,7 @@ E_p_k = E_p_k.reshape((target_points, target_points))
 pow_kf_db = 20*np.log10(np.abs(E_p_k))
 phase_kf = np.rad2deg(np.angle(E_p_k))
 
-u = np.linspace(-target_map_size/2, target_map_size/2, target_points)
+u = np.linspace(-target_map_size/2, target_map_size/2, target_points, endpoint=endpoint)
 uv, vv = np.meshgrid(u,u)
 
 
