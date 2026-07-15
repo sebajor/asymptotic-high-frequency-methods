@@ -2,6 +2,7 @@
 __pycache__/
 *.py[codz]
 *$py.class
+*.hdf5
 
 #dont save images
 example/apex_panelfit/images*
