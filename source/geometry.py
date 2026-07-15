@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 from astropy import units as apu
 from astropy import constants as cte
 import ipdb
-
-
+import jax
+import jax.numpy as jnp
 
 
 
