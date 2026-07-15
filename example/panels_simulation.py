@@ -90,7 +90,7 @@ pr_v, pt_v = np.meshgrid(pr, p_tetha)
 sr_v, st_v = np.meshgrid(sr, s_tetha) 
 
 
-panels, (s_pos, s_n, s_ds), B, s_focus =  build_apex_model(pr_v, pt_v, sr_v, st_v, 
+panels, (s_pos, s_n, s_ds, sec_vertex), B, s_focus =  build_apex_model(pr_v, pt_v, sr_v, st_v,
                      primary_focus=f1, f_d=f_d,
                      blockage=silhouette,
                      legs_diameter=legs_diameter,

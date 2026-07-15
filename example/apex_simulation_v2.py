@@ -41,7 +41,10 @@ k_hat = np.array((0,0,1))
 ##offset of the secondary from nominal position (this should be a parameter, when optimizing)
 #sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
 sec_offsets = [0*apu.mm, 0*apu.mm, +15*apu.mm]
-#sec_offsets = [2.4*apu.mm, -8.5*apu.mm, +15*apu.mm]
+
+###the hexapod has as limit roughly 8 deg!
+sec_rotation = [0*apu.deg, 5*apu.deg, 5*apu.deg]   #alpha, beta, gamma
+
 
 ##
 target_distance = 1835*apu.m
@@ -82,10 +85,12 @@ sr_v, st_v = np.meshgrid(sr, s_tetha)
 
 
 ##add the defocus to the secondary
-s_pos[:,0] += sec_offsets[0]
-s_pos[:,1] += sec_offsets[1]
-s_pos[:,2] += sec_offsets[2]
+#s_pos[:,0] += sec_offsets[0]
+#s_pos[:,1] += sec_offsets[1]
+#s_pos[:,2] += sec_offsets[2]
+##add rotation for the secondary
 
+s_pos, s_n = secondary_position_update(s_pos, s_n, sec_vertex, sec_offsets, sec_rotation)
 
 ##create feed field
 source_x0 = np.array((0,0,B.to_value(apu.m))).T*apu.m

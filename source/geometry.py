@@ -229,6 +229,7 @@ def cassegrain_cylindrical_cone(pr_v, pt_v, sr_v, st_v,
                            rc=30*apu.mm, Q=0.4284*apu.mm, C=0.5504*apu.mm
         ):
     """
+    TODO: check the math!!!!
     The usual cylindrical cassegrain, but as subreflector use the modified 
     hyperboloid with a cone in the vertex
         pr_v: primary radii values (meshgrid)
@@ -260,7 +261,7 @@ def cassegrain_cylindrical_cone(pr_v, pt_v, sr_v, st_v,
     B = m*(primary_focus-L)-L       ##feed position
     s_focus = np.sqrt(a**2+b**2)+z0    ##this is the imaginary point where the reflected points came from 
 
-    return ([p_surf_pos, p_n, p_ds], [s_surf_pos, s_n, s_ds], -B, s_focus)
+    return ([p_surf_pos, p_n, p_ds], [s_surf_pos, s_n, s_ds, z_vertex], -B, s_focus, )
 
 
 
@@ -478,3 +479,32 @@ def cassegrain_silhouettes(p_pos,
     blockage = np.abs(1-mask)
     #return mask, mask_legs, mask_sec
     return blockage
+
+
+
+
+def secondary_position_update(s_pos, s_n, sec_vertex, sec_offset, sec_rotation):
+    """
+    s_pos and s_n are [:,3] where the second axis are x,y,z
+    s_pos in mts
+    sec_vertex: the vertex of the secondary (we need it to set the origin there)
+    sec_offset: movement of the nominal secondary position in mts   
+    sec_rotation: in rad
+
+    The effect of a rotation is the matrix product between x'=Rx and also is the 
+    same for the normal vector n'=Rn    
+    """
+    #first we will rotate the 
+    orig_sec = s_pos-sec_vertex
+    alpha = sec_rotation[0]; beta = sec_rotation[1]; gamma = sec_rotation[2]
+    R = jnp.array([[jnp.cos(alpha)*jnp.cos(beta), jnp.cos(alpha)*jnp.sin(beta)*jnp.sin(gamma)-jnp.sin(alpha)*jnp.cos(gamma), jnp.cos(alpha)*jnp.sin(beta)*jnp.cos(gamma)+jnp.sin(alpha)*jnp.sin(gamma)],
+                   [jnp.sin(alpha)*jnp.cos(beta), jnp.sin(alpha)*jnp.sin(beta)*jnp.sin(gamma)+jnp.cos(alpha)*jnp.cos(gamma), jnp.sin(alpha)*jnp.sin(beta)*jnp.cos(gamma)-jnp.cos(alpha)*jnp.sin(gamma)],
+                   [-jnp.sin(beta)              , jnp.cos(beta)*jnp.sin(gamma)                                             , jnp.cos(beta)*jnp.cos(gamma)                                             ]]
+                  )
+    new_sec_pos = jnp.matmul(R, orig_sec.T).T+sec_vertex
+    new_sec_pos[:,0] += sec_offset[0]
+    new_sec_pos[:,1] += sec_offset[1]
+    new_sec_pos[:,2] += sec_offset[2]
+    new_dn = jnp.matmul(R, s_n.T).T
+    return new_sec_pos, new_dn
+

@@ -25,7 +25,7 @@ gold_file = "train_data/defoc_0_0_0.npz"    ##this is a fake data generated
 
 iters = 600
 
-panels, s_pos, s_n, s_ds, B, target_pos = create_apex_geometries(r_min_prim, d1, r_points, 
+panels, s_pos, s_n, s_ds, sec_vertex, B, target_pos = create_apex_geometries(r_min_prim, d1, r_points,
                       r_min_sec, d2, 
                       t_points_primary, t_points_secondary,
                       f1, f_d, 
