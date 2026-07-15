@@ -89,6 +89,8 @@ sr_v, st_v = np.meshgrid(sr, s_tetha)
 #s_pos[:,1] += sec_offsets[1]
 #s_pos[:,2] += sec_offsets[2]
 ##add rotation for the secondary
+sec_offsets = jnp.array([x.to_value(apu.m) for x in sec_offsets])
+sec_rotation = jnp.array(x.to_value(apu.rad) for x in sec_rotation]
 
 s_pos, s_n = secondary_position_update(s_pos, s_n, sec_vertex, sec_offsets, sec_rotation)
 
