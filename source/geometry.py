@@ -501,10 +501,7 @@ def secondary_position_update(s_pos, s_n, sec_vertex, sec_offset, sec_rotation):
                    [jnp.sin(alpha)*jnp.cos(beta), jnp.sin(alpha)*jnp.sin(beta)*jnp.sin(gamma)+jnp.cos(alpha)*jnp.cos(gamma), jnp.sin(alpha)*jnp.sin(beta)*jnp.cos(gamma)-jnp.cos(alpha)*jnp.sin(gamma)],
                    [-jnp.sin(beta)              , jnp.cos(beta)*jnp.sin(gamma)                                             , jnp.cos(beta)*jnp.cos(gamma)                                             ]]
                   )
-    new_sec_pos = jnp.matmul(R, orig_sec.T).T+sec_vertex
-    new_sec_pos[:,0] += sec_offset[0]
-    new_sec_pos[:,1] += sec_offset[1]
-    new_sec_pos[:,2] += sec_offset[2]
+    new_sec_pos = jnp.matmul(R, orig_sec.T).T+sec_vertex+sec_offset[None,:]
     new_dn = jnp.matmul(R, s_n.T).T
     return new_sec_pos, new_dn
 
