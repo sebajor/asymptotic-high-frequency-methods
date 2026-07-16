@@ -90,16 +90,23 @@ sr_v, st_v = np.meshgrid(sr, s_tetha)
 #s_pos[:,2] += sec_offsets[2]
 ##add rotation for the secondary
 sec_offsets = jnp.array([x.to_value(apu.m) for x in sec_offsets])
-sec_rotation = jnp.array(x.to_value(apu.rad) for x in sec_rotation]
+sec_rotation = jnp.array([x.to_value(apu.rad) for x in sec_rotation])
 
 s_pos, s_n = secondary_position_update(s_pos, s_n, sec_vertex, sec_offsets, sec_rotation)
 
 ##create feed field
-source_x0 = np.array((0,0,B.to_value(apu.m))).T*apu.m
-source = cylindrical_gaussian_beam(edge_tapper, horn_aperture, 
-                                    wavel, source_x0, k_hat)
+#source_x0 = np.array((0,0,B.to_value(apu.m))).T*apu.m
+#source = cylindrical_gaussian_beam(edge_tapper, horn_aperture, 
+#                                    wavel, source_x0, k_hat)
 ##propagate the gaussian beam to the secondary
-E_i_kf = source.propagate(s_pos)
+#E_i_kf = source.propagate(s_pos)
+
+horn_position = (jnp.array((0,0,B.to_value(apu.m))).T).astype(jnp.float32)
+E_i_kf = propagate_cylindrical_gaussian_beam(
+        edge_tapper, horn_aperture, wavel,
+        horn_position, s_pos
+        )
+
 
 ###get target positions
 target_pos = compute_sphere_projection(target_distance, 
