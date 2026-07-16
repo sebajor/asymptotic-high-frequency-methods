@@ -102,8 +102,9 @@ s_pos, s_n = secondary_position_update(s_pos, s_n, sec_vertex, sec_offsets, sec_
 #E_i_kf = source.propagate(s_pos)
 
 horn_position = (jnp.array((0,0,B.to_value(apu.m))).T).astype(jnp.float32)
+
 E_i_kf = propagate_cylindrical_gaussian_beam(
-        edge_tapper, horn_aperture, wavel,
+        edge_tapper.to_value(apu.dB), horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
         horn_position, s_pos
         )
 
