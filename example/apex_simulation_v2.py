@@ -29,9 +29,9 @@ s = 1.05        ##oversize of the secondary
 legs_diameter = 0.05*apu.m#0.1*apu.m
 
 r_min = 0.001*apu.m
-r_points = 1024#256
-t_points_primary = 2048#1024#512      ##angular points for the primary
-t_points_secondary = 1024#512    ##angular points for the secondary
+r_points = 512#1024#256
+t_points_primary = 512#2048#1024#512      ##angular points for the primary
+t_points_secondary = 512#1024#512    ##angular points for the secondary
 
 ##gaussian beam feed horn
 edge_tapper = -5*apu.dB
@@ -40,18 +40,24 @@ k_hat = np.array((0,0,1))
 
 ##offset of the secondary from nominal position (this should be a parameter, when optimizing)
 #sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
-sec_offsets = [0*apu.mm, 0*apu.mm, +15*apu.mm]
+#sec_offsets = [0*apu.mm, 0*apu.mm, +15*apu.mm]
+
+##apex offsets
+#sec_offsets = [2400*apu.um, -8500*apu.um, 15000*apu.um] 
+sec_offsets = [2400*apu.um, -4000*apu.um, 15000*apu.um] 
+
 
 ###the hexapod has as limit roughly 8 deg!
-sec_rotation = [0*apu.deg, 5*apu.deg, 5*apu.deg]   #alpha, beta, gamma
+#sec_rotation = [0*apu.deg, 0.0*apu.deg, 0*apu.deg]   #alpha, beta, gamma
+sec_rotation = [-22.7*apu.mdeg, 0.0*apu.deg, 0*apu.deg]   #alpha, beta, gamma
 
 
 ##
 target_distance = 1835*apu.m
 #target_map_size = 3*apu.deg     ##size of the map
 target_map_size = 42*256*apu.arcsec##size of the map
-#target_points = 513
-target_points = 256
+target_points = 513
+#target_points = 256
 endpoint = False#True
 
 ## if add the blockage of the legs and secondary
@@ -140,10 +146,10 @@ else:
 
 ### convert the parameters into jnp avoiding units
 ##after checking the only object that needs to be f64 is the target_positions
-s_pos = jnp.array(s_pos.to_value(apu.m)).astype(jnp.float32)
-s_n = jnp.array(s_n).astype(jnp.float32)
+#s_pos = jnp.array(s_pos.to_value(apu.m)).astype(jnp.float32)
+#s_n = jnp.array(s_n).astype(jnp.float32)
 s_ds = jnp.array(s_ds.to_value(apu.m**2)).astype(jnp.float32)
-E_i_kf = jnp.array(E_i_kf.to_value(apu.V/apu.m)).astype(jnp.complex64)
+#E_i_kf = jnp.array(E_i_kf.to_value(apu.V/apu.m)).astype(jnp.complex64)
 wavel = jnp.float32(wavel.to_value(apu.m))
 p_pos = jnp.array(p_pos.to_value(apu.m)).astype(jnp.float32)
 p_n = jnp.array(p_n).astype(jnp.float32)

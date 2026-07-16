@@ -29,9 +29,9 @@ s = 1.05        ##oversize of the secondary
 legs_diameter = 0.05*apu.m#0.1*apu.m
 
 r_min = 0.001*apu.m
-r_points = 1024#256
-t_points_primary = 2048#1024#512      ##angular points for the primary
-t_points_secondary = 1024#512    ##angular points for the secondary
+r_points = 256
+t_points_primary = 512      ##angular points for the primary
+t_points_secondary = 512    ##angular points for the secondary
 
 ##gaussian beam feed horn
 edge_tapper = -5*apu.dB
