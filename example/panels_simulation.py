@@ -58,7 +58,8 @@ k_hat = np.array((0,0,1))
 #sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
 #sec_offsets = [0*apu.mm, 0*apu.mm, +15*apu.mm]
 ##nominal holo values
-sec_offsets = [2400*apu.um, -4000*apu.um, 15000*apu.um] 
+#sec_offsets = [2400*apu.um, -4000*apu.um, 15000*apu.um] 
+sec_offsets = [0*apu.um, 0*apu.um, 15000*apu.um] 
 sec_rotation = [-22.7*apu.mdeg, 0.0*apu.deg, 0*apu.deg]   #alpha, beta, gamma
 
 
@@ -100,7 +101,8 @@ panels, (s_pos, s_n, s_ds, sec_vertex), B, s_focus =  build_apex_model(pr_v, pt_
                      legs_diameter=legs_diameter,
                      secondary_diameter=secondary_silhouette,
                      sigma_t=sigma_t,
-                     sigma_r=sigma_r
+                     sigma_r=sigma_r,
+                     batch_size=batch_size
         )
 
 
@@ -111,7 +113,7 @@ target_pos = compute_sphere_projection(target_distance,
                                        target_points
                                        )
 
-sec_offset = jnp.array([x.to_value(apu.m) for x in sec_offsets])
+sec_offsets = jnp.array([x.to_value(apu.m) for x in sec_offsets])
 sec_rotation = jnp.array([x.to_value(apu.rad) for x in sec_rotation])
 target_pos = jnp.array(target_pos.to_value(apu.m))
 #s_pos = jnp.array(s_pos.to_value(apu.m))
@@ -134,13 +136,13 @@ if(ans=='n'):
 
 
 ###ok, here we start the pure jax shit
-def make_forward_function(panels, s_pos0, s_n0, s_ds, sec_vertex
+def make_forward_function(panels, s_pos0, s_n0, s_ds, sec_vertex,
                     target_pos, horn_position, edge_tapper, horn_aperture,
                      wavel, batch_size):
     @jax.jit
-    def forward_function(coeffs, sec_offset, sec_rotation):
-        #s_pos = s_pos0+sec_offset[None,:]
-        s_pos, s_n = secondary_position_update(s_pos0, s_n0, sec_vertex, sec_offset, sec_rotation)
+    def forward_function(coeffs, sec_offsets, sec_rotation):
+        #s_pos = s_pos0+sec_offsets[None,:]
+        s_pos, s_n = secondary_position_update(s_pos0, s_n0, sec_vertex, sec_offsets, sec_rotation)
         p_pos, p_n, p_ds, panel_ms = apply_panel_deformation(panels, coeffs)
         E_i_kf = propagate_cylindrical_gaussian_beam(edge_tapper, horn_aperture, wavel, 
                                                      horn_position, s_pos)
@@ -150,12 +152,12 @@ def make_forward_function(panels, s_pos0, s_n0, s_ds, sec_vertex
     return forward_function
 
 
-forw_function = make_forward_function(panels, s_pos, s_n, s_ds, sec_vertex
+forw_function = make_forward_function(panels, s_pos, s_n, s_ds, sec_vertex,
                      target_pos, horn_position, edge_tapper.to_value(apu.dB),
                      horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
                      batch_size)
 start = time.time()
-E = forw_function(coeffs, sec_offset)
+E = forw_function(coeffs, sec_offsets, sec_rotation)
 E_host = jax.block_until_ready(E)
 print("Forward function took: {:.4f}".format((time.time()-start)))
 

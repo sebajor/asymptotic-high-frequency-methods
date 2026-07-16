@@ -235,7 +235,7 @@ def build_apex_model(pr_v, pt_v, sr_v, st_v,
     B = m*(primary_focus-L)-L       ##feed position
     s_focus = np.sqrt(a**2+b**2)+z0    ##this is the imaginary point where the reflected points came from 
     
-    return (panels, [s_surf_pos, s_n, s_ds], -B, s_focus, z_vertex)
+    return (panels, [s_surf_pos, s_n, s_ds, z_vertex], -B, s_focus)
 
 
 ##ok this part should be pure jax
