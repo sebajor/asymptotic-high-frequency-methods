@@ -116,7 +116,7 @@ target_pos = compute_sphere_projection(target_distance,
 sec_offsets = jnp.array([x.to_value(apu.m) for x in sec_offsets])
 sec_rotation = jnp.array([x.to_value(apu.rad) for x in sec_rotation])
 target_pos = jnp.array(target_pos.to_value(apu.m))
-#s_pos = jnp.array(s_pos.to_value(apu.m))
+s_pos = jnp.array(s_pos.to_value(apu.m))
 
 
 panels = jax.tree_util.tree_map(jnp.array, panels)
@@ -152,7 +152,7 @@ def make_forward_function(panels, s_pos0, s_n0, s_ds, sec_vertex,
     return forward_function
 
 
-forw_function = make_forward_function(panels, s_pos, s_n, s_ds, sec_vertex,
+forw_function = make_forward_function(panels, s_pos, s_n, s_ds, sec_vertex.to_value(apu.m),
                      target_pos, horn_position, edge_tapper.to_value(apu.dB),
                      horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
                      batch_size)

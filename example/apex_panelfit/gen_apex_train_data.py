@@ -26,6 +26,7 @@ def pytree_to_numpy(tree):
 ### hyperparameters
 ##defocus in mm
 defocus = [
+    [0,0,-15],
     [0,0,0],
     [0,0,15],
     [0,0,7],
@@ -38,8 +39,9 @@ defocus = [
     #[7,0,0]
     #]
 
-subref_rotations = np.random.randn(3)*10*apu.mdeg
-train_dir = "train_data/"
+#subref_rotations = np.random.randn(3)*10*apu.mdeg
+subref_rotations = np.zeros(3)*10*apu.mdeg
+train_dir = "train_data_rotation/"
 
 #test
 os.system("export JAX_ENABLE_X64=True")
@@ -80,7 +82,7 @@ sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
 target_distance = 1835*apu.m
 target_map_size = 3*apu.deg     ##size of the map
 #target_points = 513
-target_points = 256
+target_points = 257
 
 ## if add the blockage of the legs and secondary
 silhouette = True
@@ -167,7 +169,7 @@ def make_forward_function(panels, s_pos0, s_n0, s_ds, sec_vertex,
 
 
 ##iteration changing the values of defocus
-forw_function = make_forward_function(panels, s_pos, s_n, s_ds, sec_vertex,
+forw_function = make_forward_function(panels, s_pos, s_n, s_ds, sec_vertex.to_value(apu.m),
                      target_pos, horn_position, edge_tapper.to_value(apu.dB),
                      horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
                      batch_size)
@@ -177,8 +179,8 @@ start = time.time()
 for defoc in defocus:
     local_start = time.time()
     print(defoc)
-    sec_offset = jnp.array([x*1e-3 for x in defoc])
-    E = forw_function(coeffs, sec_offset)
+    sec_offsets = jnp.array([x*1e-3 for x in defoc])
+    E = forw_function(coeffs, sec_offsets, subref_rotations.to_value(apu.rad))
     E_host = jax.block_until_ready(E)
     E_out = E_host.reshape((target_points, target_points))
     name = 'defoc_'+str(defoc[0])+'_'+str(defoc[1])+'_'+str(defoc[2])
@@ -194,5 +196,7 @@ print("save coefficients")
 
 coeffs_np = pytree_to_numpy(coeffs)
 np.savez(os.path.join(os.path.abspath(train_dir), 'coeffs'),
-         coeffs=coeffs_np)
+         coeffs=coeffs_np,
+         rotation=np.array(subref_rotations)
+         )
 
