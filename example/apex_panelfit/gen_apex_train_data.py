@@ -29,14 +29,16 @@ defocus = [
     [0,0,0],
     [0,0,15],
     [0,0,7],
-    [0,0,-15],
-    [0,0,-7],
-    [7,0,15],
-    [7,0,0],
-    [0,7,15],
-    [7,0,0]
     ]
+    #[0,0,-15],
+    #[0,0,-7],
+    #[7,0,15],
+    #[7,0,0],
+    #[0,7,15],
+    #[7,0,0]
+    #]
 
+subref_rotations = np.random.randn(3)*10*apu.mdeg
 train_dir = "train_data/"
 
 #test
@@ -125,7 +127,7 @@ target_pos = compute_sphere_projection(target_distance,
                                        target_points
                                        )
 
-sec_offset = jnp.array([x.to_value(apu.m) for x in sec_offsets])
+sec_offsets = jnp.array([x.to_value(apu.m) for x in sec_offsets])
 target_pos = jnp.array(target_pos.to_value(apu.m))
 s_pos = jnp.array(s_pos.to_value(apu.m))
 
@@ -147,12 +149,13 @@ if(ans=='n'):
 
 
 ###ok, here we start the pure jax shit
-def make_forward_function(panels, s_pos0, s_n, s_ds, 
+def make_forward_function(panels, s_pos0, s_n0, s_ds, sec_vertex,
                     target_pos, horn_position, edge_tapper, horn_aperture,
                      wavel, batch_size):
     @jax.jit
-    def forward_function(coeffs, sec_offset):
-        s_pos = s_pos0+sec_offset[None,:]
+    def forward_function(coeffs, sec_offsets, sec_rotation):
+        #s_pos = s_pos0+sec_offset[None,:]
+        s_pos, s_n = secondary_position_update(s_pos0, s_n0, sec_vertex, sec_offsets, sec_rotation)
         p_pos, p_n, p_ds, panel_ms = apply_panel_deformation(panels, coeffs)
         E_i_kf = propagate_cylindrical_gaussian_beam(edge_tapper, horn_aperture, wavel, 
                                                      horn_position, s_pos)
@@ -164,7 +167,7 @@ def make_forward_function(panels, s_pos0, s_n, s_ds,
 
 
 ##iteration changing the values of defocus
-forw_function = make_forward_function(panels, s_pos, s_n, s_ds,
+forw_function = make_forward_function(panels, s_pos, s_n, s_ds, sec_vertex,
                      target_pos, horn_position, edge_tapper.to_value(apu.dB),
                      horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
                      batch_size)
