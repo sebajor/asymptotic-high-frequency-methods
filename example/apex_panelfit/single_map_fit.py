@@ -16,12 +16,12 @@ import optax
 
 
 learning_rate = 1e-6#1e-3
-#sec_offset = [0*apu.mm, 0*apu.mm, 15*apu.mm]
-sec_offset = [0*apu.mm, 0*apu.mm, 0*apu.mm]
+sec_offsets = [0*apu.mm, 0*apu.mm, 15*apu.mm]
+#sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
 ##since the values should be in the 1e-6, then the mse will be in 1e-12! 
 #gamma = 5*1e10
 gamma = 5*1e7
-gold_file = "train_data/defoc_0_0_0.npz"    ##this is a fake data generated
+gold_file = "train_data/defoc_0_0_15.npz"    ##this is a fake data generated
 
 iters = 600
 
@@ -61,7 +61,7 @@ if(panels_points%batch_size != 0):
 
 #convert the data into jnp arrays
 
-sec_offset = jnp.array([x.to_value(apu.m) for x in sec_offset]).astype(jnp.float32)
+sec_offsets = jnp.array([x.to_value(apu.m) for x in sec_offsets]).astype(jnp.float32)
 s_pos = jnp.array(s_pos.to_value(apu.m)).astype(jnp.float32)
 ##the target positions affect the dynamic range of the output..
 #target_pos = jnp.array(target_pos.to_value(apu.m)).astype(jnp.float64)
@@ -77,12 +77,13 @@ horn_position = (jnp.array((0,0,B.to_value(apu.m))).T).astype(jnp.float32)
 
 
 ##create the forward function
-def make_forward_function(panels, s_pos0, s_n, s_ds, 
+def make_forward_function(panels, s_pos0, s_n0, s_ds, sec_vertex,
                     target_pos, horn_position, edge_tapper, horn_aperture,
                      wavel, batch_size, target_distance, map_dtype=jnp.complex64):
     @jax.jit
-    def forward_function(coeffs, sec_offset):
-        s_pos = s_pos0+sec_offset[None,:]
+    def forward_function(coeffs, sec_rotation, sec_offsets):
+        #s_pos = s_pos0+sec_offset[None,:]
+        s_pos, s_n = secondary_position_update(s_pos0, s_n0, sec_vertex, sec_offsets, sec_rotation)
         p_pos, p_n, p_ds, deform_ms = apply_panel_deformation(panels, coeffs)
         E_i_kf = propagate_cylindrical_gaussian_beam(edge_tapper, horn_aperture, wavel, 
                                                      horn_position, s_pos)
@@ -97,14 +98,15 @@ def make_forward_function(panels, s_pos0, s_n, s_ds,
     return forward_function
 
 
-forw_function = make_forward_function(panels, s_pos, s_n, s_ds,
+forw_function = make_forward_function(panels, s_pos, s_n, s_ds, sec_vertex.to_value(apu.m),
                      target_pos, horn_position, edge_tapper.to_value(apu.dB),
                      horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
                      batch_size, target_distance.to_value(apu.m))
 
 
-def loss_funct(coeffs, sec_offset, gold, gamma):
-    pred, deform_mse = forw_function(coeffs, sec_offset)
+#def loss_funct(coeffs, sec_rotation, sec_offsets, gold, gamma):
+def loss_funct(params, gold, gamma):
+    pred, deform_mse = forw_function(params['coeffs'], params['sec_rotation'], params['sec_offsets'])
     ##normalize the predictions
     error = pred-gold
     #loss in the aperture
@@ -116,20 +118,24 @@ def loss_funct(coeffs, sec_offset, gold, gamma):
     #jax.debug.print("jax.debug.print(y) -> {y}", y=jnp.mean(deform_mse))
     return loss
 
-
+params = {
+        "coeffs":coeffs,
+        "sec_rotation": sec_rotation,
+        "sec_offsets": sec_offsets
+        }
 
 loss_grad = jax.jit(jax.value_and_grad(loss_funct))
 optimizer = optax.adam(learning_rate)
 
-opt_state = optimizer.init(coeffs)
+opt_state = optimizer.init(params)
 
 
 @jax.jit
-def train_step(coeffs, opt_state, sec_offset, gold, gamma):
-    loss, grads = loss_grad(coeffs, sec_offset, gold, gamma)
-    updates, opt_state = optimizer.update(grads, opt_state, coeffs)
-    coeffs = optax.apply_updates(coeffs, updates)
-    return coeffs, opt_state, loss
+def train_step(params, opt_state, gold, gamma):
+    loss, grads = loss_grad(params, gold, gamma)
+    updates, opt_state = optimizer.update(grads, opt_state, params) ##sec_rotation (?)
+    coeffs = optax.apply_updates(params, updates)
+    return params, opt_state, loss
 
 
 print("Training loop")
@@ -144,7 +150,7 @@ if(train_request!= 'y'):
 
 for i in range(iters):
     start = time.time()
-    coeffs, opt_state, loss = train_step(coeffs, opt_state, sec_offset,E.flatten(), gamma)
+    coeffs, opt_state, loss = train_step(params, opt_state, E.flatten(), gamma)
     losses.append(loss)
     print("iter:%i/t loss:%.3f/t time:%.3f "%(i, loss, time.time()-start))
     if((i%10) == 0):
