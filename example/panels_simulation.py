@@ -55,8 +55,12 @@ horn_aperture = 3*apu.cm
 k_hat = np.array((0,0,1))
 
 ##offset of the secondary from nominal position (this should be a parameter, when optimizing)
-sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
+#sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
 #sec_offsets = [0*apu.mm, 0*apu.mm, +15*apu.mm]
+##nominal holo values
+sec_offsets = [2400*apu.um, -4000*apu.um, 15000*apu.um] 
+sec_rotation = [-22.7*apu.mdeg, 0.0*apu.deg, 0*apu.deg]   #alpha, beta, gamma
+
 
 ##
 target_distance = 1835*apu.m
@@ -108,8 +112,9 @@ target_pos = compute_sphere_projection(target_distance,
                                        )
 
 sec_offset = jnp.array([x.to_value(apu.m) for x in sec_offsets])
+sec_rotation = jnp.array([x.to_value(apu.rad) for x in sec_rotation])
 target_pos = jnp.array(target_pos.to_value(apu.m))
-s_pos = jnp.array(s_pos.to_value(apu.m))
+#s_pos = jnp.array(s_pos.to_value(apu.m))
 
 
 panels = jax.tree_util.tree_map(jnp.array, panels)
@@ -129,12 +134,13 @@ if(ans=='n'):
 
 
 ###ok, here we start the pure jax shit
-def make_forward_function(panels, s_pos0, s_n, s_ds, 
+def make_forward_function(panels, s_pos0, s_n0, s_ds, sec_vertex
                     target_pos, horn_position, edge_tapper, horn_aperture,
                      wavel, batch_size):
     @jax.jit
-    def forward_function(coeffs, sec_offset):
-        s_pos = s_pos0+sec_offset[None,:]
+    def forward_function(coeffs, sec_offset, sec_rotation):
+        #s_pos = s_pos0+sec_offset[None,:]
+        s_pos, s_n = secondary_position_update(s_pos0, s_n0, sec_vertex, sec_offset, sec_rotation)
         p_pos, p_n, p_ds, panel_ms = apply_panel_deformation(panels, coeffs)
         E_i_kf = propagate_cylindrical_gaussian_beam(edge_tapper, horn_aperture, wavel, 
                                                      horn_position, s_pos)
@@ -144,7 +150,7 @@ def make_forward_function(panels, s_pos0, s_n, s_ds,
     return forward_function
 
 
-forw_function = make_forward_function(panels, s_pos, s_n, s_ds,
+forw_function = make_forward_function(panels, s_pos, s_n, s_ds, sec_vertex
                      target_pos, horn_position, edge_tapper.to_value(apu.dB),
                      horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
                      batch_size)
