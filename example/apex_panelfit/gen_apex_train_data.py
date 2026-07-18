@@ -39,8 +39,11 @@ defocus = [
     #[7,0,0]
     #]
 
-#subref_rotations = np.random.randn(3)*10*apu.mdeg
-subref_rotations = np.zeros(3)*10*apu.mdeg
+subref_rotations = np.random.randn(3)*10*apu.mdeg
+#subref_rotations = np.zeros(3)*10*apu.mdeg
+print("rotations: %.4f %.4f %.4f"%(subref_rotations[0].to_value(apu.mdeg),subref_rotations[1].to_value(apu.mdeg),subref_rotations[2].to_value(apu.mdeg)))
+
+
 train_dir = "train_data_rotation/"
 
 #test
@@ -197,6 +200,6 @@ print("save coefficients")
 coeffs_np = pytree_to_numpy(coeffs)
 np.savez(os.path.join(os.path.abspath(train_dir), 'coeffs'),
          coeffs=coeffs_np,
-         rotation=np.array(subref_rotations)
+         rotation=subref_rotations.to_value(apu.rad)
          )
 

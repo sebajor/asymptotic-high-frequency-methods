@@ -10,6 +10,11 @@ from functools import partial
 import optax
 
 
+###
+### This code does a full fitting over the 6 parameters of the subreflector.. It was  shown that it doesnt work :(
+###
+
+
 os.system("export JAX_ENABLE_X64=True")
 jax.config.update('jax_enable_x64', True)
 
@@ -106,8 +111,8 @@ forw_function = make_forward_function(panels, s_pos, s_n, s_ds, sec_vertex.to_va
 
 
 #def loss_funct(coeffs, sec_rotation, sec_offsets, gold, gamma):
-def loss_funct(params, sec_offsets, gold, gamma):
-    pred, deform_mse = forw_function(params['coeffs'], params['sec_rotation'],sec_offsets) 
+def loss_funct(params, gold, gamma):
+    pred, deform_mse = forw_function(params['coeffs'], params['sec_rotation'], params['sec_offsets'])
     ##normalize the predictions
     error = pred-gold
     #loss in the aperture
@@ -122,6 +127,7 @@ def loss_funct(params, sec_offsets, gold, gamma):
 params = {
         "coeffs":coeffs,
         "sec_rotation": sec_rotation,
+        "sec_offsets": sec_offsets
         }
 
 loss_grad = jax.jit(jax.value_and_grad(loss_funct))
@@ -131,8 +137,8 @@ opt_state = optimizer.init(params)
 
 
 @jax.jit
-def train_step(params, opt_state, sec_offsets,  gold, gamma):
-    loss, grads = loss_grad(params,sec_offsets, gold, gamma)
+def train_step(params, opt_state, gold, gamma):
+    loss, grads = loss_grad(params, gold, gamma)
     updates, opt_state = optimizer.update(grads, opt_state, params) ##sec_rotation (?)
     params = optax.apply_updates(params, updates)
     return params, opt_state, loss
@@ -150,13 +156,13 @@ if(train_request!= 'y'):
 
 for i in range(iters):
     start = time.time()
-    params, opt_state, loss = train_step(params, opt_state, sec_offsets, E.flatten(), gamma)
+    params, opt_state, loss = train_step(params, opt_state, E.flatten(), gamma)
     losses.append(loss)
     print("iter:%i/t loss:%.3f/t time:%.3f "%(i, loss, time.time()-start))
     if((i%10) == 0):
         fig, ax = plt.subplots(2,2,figsize=(10,10))
         plot_deformations(panels, params['coeffs'],ax=ax[0,0], correct_global=0)
-        E_pred, deform_mse = forw_function(params['coeffs'], params['sec_rotation'], sec_offsets)
+        E_pred, deform_mse = forw_function(params['coeffs'], params['sec_rotation'], params['sec_offsets'])
         E_pred = np.array(E_pred).reshape((target_points, target_points))
         ax[0,1].plot(20*np.log10(np.abs(np.diag(E_pred))), color='darkblue')
         ax[0,1].plot(20*np.log10(np.abs(np.diag(E))), color='darkred')
@@ -165,11 +171,9 @@ for i in range(iters):
         ax[1,0].imshow(np.angle(ap))
         ax[1,1].imshow(np.abs(ap))
         title = "iteration "+str(i)+"\n"
-        title += "rotations: %.5f %.5f %.5f"%(
-                np.rad2deg(params['sec_rotation'][0])*1e3,
-                np.rad2deg(params['sec_rotation'][1])*1e3,
-                np.rad2deg(params['sec_rotation'][2]*1e3)
-                    )#+"\n"
+        title += "%.5f %.5f %.5f"%(params['sec_offsets'][0], params['sec_offsets'][1], params['sec_offsets'][2])+"\n"
+
+        title += "%.5f %.5f %.5f"%(params['sec_rotation'][0], params['sec_rotation'][1], params['sec_rotation'][2])+"\n"
         #ax.set_title("iteration "+str(i))
         fig.suptitle(title)
         fig.savefig('images/'+str(i), dpi=100)

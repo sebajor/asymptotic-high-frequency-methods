@@ -34,6 +34,7 @@ k_hat = np.array((0,0,1))
 
 ##offset of the secondary from nominal position (this should be a parameter, when optimizing)
 sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
+sec_rotation = [0*apu.mdeg, 0*apu.mdeg, 0*apu.mdeg]
 #sec_offsets = [0*apu.mm, 0*apu.mm, +15*apu.mm]
 
 ##
@@ -75,7 +76,7 @@ def create_apex_geometries(r_min_prim, d1, r_points,
     sr_v, st_v = np.meshgrid(sr, s_tetha) 
 
 
-    panels, (s_pos, s_n, s_ds, sec_vertex), B, s_focus, sec_vertex =  build_apex_model(pr_v, pt_v, sr_v, st_v,
+    panels, (s_pos, s_n, s_ds, sec_vertex), B, s_focus =  build_apex_model(pr_v, pt_v, sr_v, st_v,
                      primary_focus=f1, f_d=f_d,
                      blockage=silhouette,
                      legs_diameter=legs_diameter,
