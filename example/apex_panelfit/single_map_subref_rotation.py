@@ -17,7 +17,6 @@ jax.config.update('jax_enable_x64', True)
 
 learning_rate = 1e-6#1e-3
 sec_offsets = [0*apu.mm, 0*apu.mm, 15*apu.mm]
-sec_rotation = [0*apu.mdeg, 0*apu.mdeg, 0*apu.mdeg]
 #sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
 ##since the values should be in the 1e-6, then the mse will be in 1e-12! 
 #gamma = 5*1e10
@@ -121,7 +120,8 @@ def loss_funct(params, sec_offsets, gold, gamma):
     return loss
 
 params = {
-        "coeffs":coeffs
+        "coeffs":coeffs,
+        "sec_rotation": sec_rotation,
         }
 
 loss_grad = jax.jit(jax.value_and_grad(loss_funct))
@@ -165,11 +165,11 @@ for i in range(iters):
         ax[1,0].imshow(np.angle(ap))
         ax[1,1].imshow(np.abs(ap))
         title = "iteration "+str(i)+"\n"
-        #title += "rotations: %.5f %.5f %.5f"%(
-        #        np.rad2deg(params['sec_rotation'][0])*1e3,
-        #        np.rad2deg(params['sec_rotation'][1])*1e3,
-        #        np.rad2deg(params['sec_rotation'][2]*1e3)
-        #            )#+"\n"
+        title += "rotations: %.5f %.5f %.5f"%(
+                np.rad2deg(params['sec_rotation'][0])*1e3,
+                np.rad2deg(params['sec_rotation'][1])*1e3,
+                np.rad2deg(params['sec_rotation'][2]*1e3)
+                    )#+"\n"
         #ax.set_title("iteration "+str(i))
         fig.suptitle(title)
         fig.savefig('images/'+str(i), dpi=100)
