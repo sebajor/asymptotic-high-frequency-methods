@@ -40,7 +40,7 @@ sec_rotation = [0*apu.mdeg, 0*apu.mdeg, 0*apu.mdeg]
 ##
 target_distance = 1835*apu.m
 target_map_size = 3*apu.deg     ##size of the map
-target_points = 257#256 #513
+target_points = 256 #513
 
 ## if add the blockage of the legs and secondary
 silhouette = True

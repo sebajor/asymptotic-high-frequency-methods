@@ -15,16 +15,19 @@ jax.config.update('jax_enable_x64', True)
 
 
 
-learning_rate = 1e-6#1e-3
+learning_rate = 1e-4#1e-6#1e-3
 sec_offsets = [0*apu.mm, 0*apu.mm, 15*apu.mm]
 sec_rotation = [0*apu.mdeg, 0*apu.mdeg, 0*apu.mdeg]
 #sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
 ##since the values should be in the 1e-6, then the mse will be in 1e-12! 
-#gamma = 5*1e10
-gamma = 5*1e7
-gold_file = "train_data_rotation/defoc_0_0_15.npz"    ##this is a fake data generated
+
+gamma = 1#5*1e7
+#gold_file = "train_data_rotation/defoc_0_0_15.npz"    ##this is a fake data generated
+#gold_file = "test_256.npz"    ##this is a fake data generated
+gold_file = 'test_phase_corrected.npz'
 
 iters = 1000#600
+map_dtype=jnp.complex128
 
 panels, s_pos, s_n, s_ds, sec_vertex, B, target_pos = create_apex_geometries(r_min_prim, d1, r_points,
                       r_min_sec, d2, 
@@ -66,8 +69,8 @@ sec_offsets = jnp.array([x.to_value(apu.m) for x in sec_offsets]).astype(jnp.flo
 sec_rotation = jnp.array([x.to_value(apu.rad) for x in sec_rotation]).astype(jnp.float32)
 s_pos = jnp.array(s_pos.to_value(apu.m)).astype(jnp.float32)
 ##the target positions affect the dynamic range of the output..
-#target_pos = jnp.array(target_pos.to_value(apu.m)).astype(jnp.float64)
-target_pos = jnp.array(target_pos.to_value(apu.m)).astype(jnp.float32)
+target_pos = jnp.array(target_pos.to_value(apu.m)).astype(jnp.float64)
+#target_pos = jnp.array(target_pos.to_value(apu.m)).astype(jnp.float32)
 
 
 panels = jax.tree_util.tree_map(lambda x: jnp.array(x, dtype=jnp.float32), panels)
@@ -81,7 +84,7 @@ horn_position = (jnp.array((0,0,B.to_value(apu.m))).T).astype(jnp.float32)
 ##create the forward function
 def make_forward_function(panels, s_pos0, s_n0, s_ds, sec_vertex,
                     target_pos, horn_position, edge_tapper, horn_aperture,
-                     wavel, batch_size, target_distance, map_dtype=jnp.complex64):
+                     wavel, batch_size, target_distance, map_dtype=jnp.complex128):
     @jax.jit
     def forward_function(coeffs, sec_rotation, sec_offsets):
         #s_pos = s_pos0+sec_offset[None,:]
@@ -103,14 +106,18 @@ def make_forward_function(panels, s_pos0, s_n0, s_ds, sec_vertex,
 forw_function = make_forward_function(panels, s_pos, s_n, s_ds, sec_vertex.to_value(apu.m),
                      target_pos, horn_position, edge_tapper.to_value(apu.dB),
                      horn_aperture.to_value(apu.m), wavel.to_value(apu.m),
-                     batch_size, target_distance.to_value(apu.m))
+                     batch_size, target_distance.to_value(apu.m),
+                     map_dtype = map_dtype
+                     )
 
 
 #def loss_funct(coeffs, sec_rotation, sec_offsets, gold, gamma):
-def loss_funct(params, sec_offsets, gold, gamma):
-    pred, deform_mse = forw_function(params['coeffs'], params['sec_rotation'],sec_offsets) 
+def loss_funct(params, sec_rotation, sec_offsets, gold, gamma):
+    pred, deform_mse = forw_function(params['coeffs'], sec_rotation,sec_offsets) 
     ##normalize the predictions
-    error = pred-gold
+    #error = pred-gold
+    pred_norm = pred/jnp.max(jnp.abs(pred))
+    error = pred_norm-gold
     #loss in the aperture
     #pred_reshape = pred.reshape((256,256)) #just to test
     #pred_shift = jnp.fft.ifftshift(pred_reshape)
@@ -131,8 +138,8 @@ opt_state = optimizer.init(params)
 
 
 @jax.jit
-def train_step(params, opt_state, sec_offsets,  gold, gamma):
-    loss, grads = loss_grad(params,sec_offsets, gold, gamma)
+def train_step(params, opt_state, sec_rotation, sec_offsets,  gold, gamma):
+    loss, grads = loss_grad(params, sec_rotation, sec_offsets, gold, gamma)
     updates, opt_state = optimizer.update(grads, opt_state, params) ##sec_rotation (?)
     params = optax.apply_updates(params, updates)
     return params, opt_state, loss
@@ -140,6 +147,7 @@ def train_step(params, opt_state, sec_offsets,  gold, gamma):
 
 print("Training loop")
 f = np.load(gold_file, allow_pickle=1)
+
 E = jnp.array(f['E'])
 losses = []
 
@@ -150,14 +158,15 @@ if(train_request!= 'y'):
 
 for i in range(iters):
     start = time.time()
-    params, opt_state, loss = train_step(params, opt_state, sec_offsets, E.flatten(), gamma)
+    params, opt_state, loss = train_step(params, opt_state, sec_rotation, sec_offsets, E.flatten(), gamma)
     losses.append(loss)
-    print("iter:%i/t loss:%.3f/t time:%.3f "%(i, loss, time.time()-start))
+    print("iter:%i/t loss:%E/t time:%.3f "%(i, loss, time.time()-start))
     if((i%10) == 0):
         fig, ax = plt.subplots(2,2,figsize=(10,10))
         plot_deformations(panels, params['coeffs'],ax=ax[0,0], correct_global=0)
-        E_pred, deform_mse = forw_function(params['coeffs'], params['sec_rotation'], sec_offsets)
+        E_pred, deform_mse = forw_function(params['coeffs'], sec_rotation, sec_offsets)
         E_pred = np.array(E_pred).reshape((target_points, target_points))
+        E_pred = E_pred/np.max(np.abs(E_pred))
         ax[0,1].plot(20*np.log10(np.abs(np.diag(E_pred))), color='darkblue')
         ax[0,1].plot(20*np.log10(np.abs(np.diag(E))), color='darkred')
         F_shift = np.fft.ifftshift(E_pred)
