@@ -31,11 +31,15 @@ t_points_secondary = 512    ##angular points for the secondary
 edge_tapper = -5*apu.dB
 horn_aperture = 3*apu.cm
 k_hat = np.array((0,0,1))
+horn_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
+horn_rotation = [0*apu.mdeg, 0*apu.mdeg, 0*apu.mdeg]
+
 
 ##offset of the secondary from nominal position (this should be a parameter, when optimizing)
 sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
 sec_rotation = [0*apu.mdeg, 0*apu.mdeg, 0*apu.mdeg]
 #sec_offsets = [0*apu.mm, 0*apu.mm, +15*apu.mm]
+
 
 ##
 target_distance = 1835*apu.m

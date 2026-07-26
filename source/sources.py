@@ -135,3 +135,42 @@ def propagate_cylindrical_gaussian_beam(
                                            1j*jnp.pi*r2/(wavel*R)+
                                            1j*phi)
     return field
+
+
+
+def propagate_cylindrical_gaussian_beam_offset(
+        edge_tapper, horn_aperture, offset, rotation, wavel, origin, target_pos
+        ):
+    """
+    It does the same as the class, but in a single function to be jax friendly....
+    This one gives an offset to the origin and also rotate the gaussian beam axis
+    edge_tapper: should be in dB
+    horn_aperture: in mts
+    offset:         (x,y,z)
+    rotations:      in rad
+    wavel:          in mts
+    origin:
+    target_positions:   jnp.array with the positions where you want to calculate the field
+    """
+    w0 = horn_aperture/jnp.sqrt(jnp.abs(10*jnp.log(10**(edge_tapper/20))))
+    z_c = jnp.pi*w0**2/wavel
+    origin = pos_origin+offset
+    r_global = target_pos-origin
+    alpha = rotation[0]; beta = rotation[1]; gamma = rotation[2]
+    R = jnp.array([[jnp.cos(alpha)*jnp.cos(beta), jnp.cos(alpha)*jnp.sin(beta)*jnp.sin(gamma)-jnp.sin(alpha)*jnp.cos(gamma), jnp.cos(alpha)*jnp.sin(beta)*jnp.cos(gamma)+jnp.sin(alpha)*jnp.sin(gamma)],
+                   [jnp.sin(alpha)*jnp.cos(beta), jnp.sin(alpha)*jnp.sin(beta)*jnp.sin(gamma)+jnp.cos(alpha)*jnp.cos(gamma), jnp.sin(alpha)*jnp.sin(beta)*jnp.cos(gamma)-jnp.cos(alpha)*jnp.sin(gamma)],
+                   [-jnp.sin(beta)              , jnp.cos(beta)*jnp.sin(gamma)                                             , jnp.cos(beta)*jnp.cos(gamma)                                             ]]
+                  )
+    ##local coordinates
+    local_pos = jnp.matmul(R, orig_sec.T).T
+    k = 2*jnp.pi/wavel
+    w = w0*jnp.sqrt(1+(local_pos[:,2]/z_c)**2)
+    R = local_pos[:,2]+z_c**2/local_pos[:,2]
+    phi = jnp.arctan2(z_c, local_pos[:,2])
+    r2 = local_pos[:,0]**2+local_pos[:,1]**2
+    field = jnp.sqrt(2/(jnp.pi*w**2))*jnp.exp(-r2/w**2 -
+                                           1j*k*local_pos[:,2]-
+                                           1j*jnp.pi*r2/(wavel*R)+
+                                           1j*phi)
+    return field
+

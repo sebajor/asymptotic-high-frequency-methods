@@ -505,3 +505,5 @@ def secondary_position_update(s_pos, s_n, sec_vertex, sec_offset, sec_rotation):
     new_dn = jnp.matmul(R, s_n.T).T
     return new_sec_pos, new_dn
 
+
+

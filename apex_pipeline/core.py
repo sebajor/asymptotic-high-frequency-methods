@@ -11,9 +11,6 @@ import optax
 import argparse
 
 
-
-
-
 ###enable the 64bit computation
 os.system("export JAX_ENABLE_X64=True")
 jax.config.update('jax_enable_x64', True)
@@ -22,6 +19,16 @@ jax.config.update('jax_enable_x64', True)
 ##optimization parameters
 learning_rate = 1e-6#1e-3
 gamma = 5*1e7
+
+##TODO: here we need to pre-process the incomming beam map, ie do the regrid
+##and substract the global features.
+
+
+
+
+###
+###
+
 
 ##we can play with the subreflector position+rotations
 ##also there can be problems with receiver position+tilts
@@ -33,7 +40,6 @@ gamma = 5*1e7
 ##We are not 100% sure about correctness of these values!
 sec_offsets = [0*apu.mm, 0*apu.mm, 15*apu.mm]       #default holo defocus
 sec_rotations = [0*apu.mdeg, 0*apu.mdeg, 0*apu.mdeg] #default holo rotations
-
 
 
 panels, s_pos, s_n, s_ds, sec_vertex, B, target_pos = create_apex_geometries(r_min_prim, d1, r_points,

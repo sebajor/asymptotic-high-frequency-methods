@@ -254,8 +254,17 @@ def generate_start_coeffs(random_key, panel_names, start_rms=1e-5, dtype=jnp.flo
         coeffs = jax.random.uniform(subkey, shape=5, 
                                     minval=-start_rms, 
                                     maxval=start_rms)
-        coeffs_out[name] = coeffs.astype(jnp.float32)
+        coeffs_out[name] = coeffs.astype(dtype)
     return coeffs_out
+
+
+def generate_start_coeffs_zeros(panel_names, dtype=jnp.float32):
+    coeffs_out = dict()
+    for name in panel_names:
+        coeffs = jnp.zeros(shape=5)
+        coeffs_out[name] = coeffs.astype(dtype)
+    return coeffs_out
+
 
 
 def deform_function(x,y, coeffs):
