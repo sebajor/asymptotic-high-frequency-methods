@@ -70,7 +70,7 @@ def make_forward_function(panels, s_pos0, s_n0, s_ds, sec_vertex,
     def forward_function(coeffs, 
                          edge_tapper, horn_aperture, 
                          horn_offsets, horn_rotation,
-                         sec_rotation, sec_offsets):
+                         sec_offsets, sec_rotation):
         s_pos, s_n = secondary_position_update(s_pos0, s_n0, sec_vertex, sec_offsets, sec_rotation)
         p_pos, p_n, p_ds, deform_ms = apply_panel_deformation(panels, coeffs)
 
@@ -96,7 +96,7 @@ def loss_funct(params, gold, gamma):
     pred, deform_mse = forw_function(params['coeffs'], 
                                      params['edge_tapper'], params['horn_aperture'], 
                                      params['horn_offsets'], params['horn_rotation'],
-                                     params['sec_rotation'], params['sec_offsets'])
+                                     params['sec_offsets'], params['sec_rotation'])
     pred_norm = pred/jnp.max(jnp.abs(pred))
     error = pred_norm-gold
     loss = jnp.mean(error.real**2+error.imag**2)+gamma*jnp.mean(deform_mse)
