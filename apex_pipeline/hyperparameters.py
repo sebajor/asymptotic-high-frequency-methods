@@ -31,16 +31,20 @@ t_points_secondary = 512    ##angular points for the secondary
 edge_tapper = -5*apu.dB
 horn_aperture = 3*apu.cm
 k_hat = np.array((0,0,1))
+horn_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
+horn_rotation = [0*apu.mdeg, 0*apu.mdeg, 0*apu.mdeg]
+
 
 ##offset of the secondary from nominal position (this should be a parameter, when optimizing)
 sec_offsets = [0*apu.mm, 0*apu.mm, 0*apu.mm]
 sec_rotation = [0*apu.mdeg, 0*apu.mdeg, 0*apu.mdeg]
 #sec_offsets = [0*apu.mm, 0*apu.mm, +15*apu.mm]
 
+
 ##
 target_distance = 1835*apu.m
-target_map_size = 42*256*apu.arcsec##size of the map
-target_points = 257#256 #513
+target_map_size =42*256*apu.arcsec #3*apu.deg     ##size of the map
+target_points = 256 #513
 
 ## if add the blockage of the legs and secondary
 silhouette = True
