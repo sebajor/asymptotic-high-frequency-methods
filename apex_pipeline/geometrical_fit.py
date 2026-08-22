@@ -24,19 +24,19 @@ import logging
 parser = argparse.ArgumentParser(
     description="Geometrical fit for apex hologrpahy pipeline")
 
-parser.add_argument('filename',  nargs=1, dest=filename, default=os.getcwd(), type=str,
+parser.add_argument('-f', '--filename', dest='filename' , type=str,
                     help="Input filename should be a .reg or .hdf5 output of the fourier pipeline")
-parser.add_argument('-lr', '--learn_rate'a dest=learning_rate, type=float, default=1e-4, 
+parser.add_argument('-lr', '--learn_rate', dest='learning_rate', type=float, default=1e-4, 
                     help="learning rate for the optimizer")
-parser.add_argument('-mi', '--max_iters', dest=max_iters, type=int, default=1000,
+parser.add_argument('-mi', '--max_iters', dest='max_iters', type=int, default=1000,
                     help="maximum iterations of the optimization")
-parser.add_argument('-cl', '--conv_lim', dest=conv_lim, type=float, default=4*1e-14,
+parser.add_argument('-cl', '--conv_lim', dest='conv_lim', type=float, default=4*1e-14,
                     help="convergence limit")
-parser.add_argument("-ll", "--loss_lim", dest=loss_lim, type=float, default=3*1e-11,
+parser.add_argument("-ll", "--loss_lim", dest='loss_lim', type=float, default=3*1e-11,
                     help="lower limit of the loss")
-parser.add_argumen("-pi","--plot_interval",dest=plot_interval, type=int, default=-1,
+parser.add_argument("-pi","--plot_interval",dest='plot_interval', type=int, default=10,
                    help="How often generate the debugging plots")
-parser.add_argument("-plot_path", dest=plot_path, type=str, default="~/MODULES/physical_optics/")
+parser.add_argument("-plot_path", dest='plot_path', type=str, default="~/MODULES/physical_optics/")
 
 ###
 ###
@@ -73,12 +73,14 @@ if(filename.endswith('.reg')):
     ##phase correction
     F = phase_correction(F,u,v,wavel)
     F = np.conj(F)
+    F = F/F[128,128]
     plot_path = os.path.join(plot_dir, filename.split('.reg')[0])
 
-else if(filename.endswith('.hdf5')):
+elif(filename.endswith('.hdf5')):
     f = h5py.File(filepath, 'r')
     F = np.array(f['phase_correction']['data'])
     F = np.conj(F)
+    F = F/F[128,128]
     plot_path = os.path.join(plot_dir, os.path.split(os.path.split(os.path.split(filepath)[0])[0])[1])
 
 else:
@@ -240,7 +242,7 @@ def plot_debug(params, gold_aperture, F, target_points, plot_path, iteration):
     ax[0,1].plot(20*np.log10(np.abs(np.diag(F))), color='darkred')
     ax[0,1].set_ylim(-82, 2)
 
-    E_shift = np.fft.ifftshift(E_pred)
+    E_shift = np.fft.ifftshift(F_pred)
     aperture = np.fft.fftshift(np.fft.ifft2(E_shift))
     ax[1,0].imshow(np.angle(aperture))
     ax[1,1].imshow(np.abs(aperture))
@@ -277,22 +279,22 @@ def pytree_to_numpy(tree):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s")
     losses = []
     print("Starting Geometrical fitting")
-    for i in range(max_iters):
+    for i in range(args.max_iters):
         start = time.time()
         params, opt_state, loss = train_step(params, opt_state, gold_aperture.flatten(),gamma)
         losses.append(loss)
         log_msg = "iter:%i \t loss:%E \t time:%.3f "%(i, loss, time.time()-start)
-        logging.debug(log_msg)
+        logging.info(log_msg)
         if(i%plot_interval==0):
             plot_debug(params, gold_aperture, F, target_points, plot_path, i)
         if(np.mean(losses[-10:]) < loss_lim):
             print("Loss limit reached at iteration %i: %E < %E"%(i, loss, loss_lim))
             break
-        if(np.mean(np.diff(losses[-10:]))< conv_lim):
+        if(np.mean(np.abs(np.diff(losses[-10:])))< conv_lim):
             print("Loss convergence reached at iteration %i: %E < %E"%(i, loss, np.mean(np.diff(losses[-10:]))))
             break
 
