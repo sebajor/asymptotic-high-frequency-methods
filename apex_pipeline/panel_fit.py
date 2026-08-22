@@ -20,6 +20,11 @@ import logging
 ### limit the optimization stops) and a lower limit on the loss to stop the optimization
 ###
 
+###
+###NOTE: the map is by default inverted, bcs of the sampling we cannot just do F=F[::-1, ::-1] 
+### TODO: change the signs in the panels.. I think I need to do this from construction...
+###
+
 
 parser = argparse.ArgumentParser(
     description="Geometrical fit for apex hologrpahy pipeline")
@@ -30,9 +35,9 @@ parser.add_argument('-lr', '--learn_rate', dest='learning_rate', type=float, def
                     help="learning rate for the optimizer")
 parser.add_argument('-mi', '--max_iters', dest='max_iters', type=int, default=1000,
                     help="maximum iterations of the optimization")
-parser.add_argument('-cl', '--conv_lim', dest='conv_lim', type=float, default=4*1e-14,
+parser.add_argument('-cl', '--conv_lim', dest='conv_lim', type=float, default=1*1e-11,
                     help="convergence limit")
-parser.add_argument("-ll", "--loss_lim", dest='loss_lim', type=float, default=3*1e-11,
+parser.add_argument("-ll", "--loss_lim", dest='loss_lim', type=float, default=2.1*1e-6,
                     help="lower limit of the loss")
 
 parser.add_argument("-gamma", "--gamma", dest='gamma', type=float, default=10,
@@ -69,7 +74,7 @@ def phase_correction(F,uv,vv,wavel,d1=2.18*apu.m,d2=7.485*apu.m):
 plot_dir = os.path.expanduser(args.plot_path)
 os.makedirs(plot_dir, exist_ok=True)
 
-filepath = os.path.expanduser(args.filename)
+filepath = os.path.abspath(os.path.expanduser(args.filename))
 filename = os.path.basename(filepath)
 if(filename.endswith('.reg')):
     u,v,amp,phase = np.loadtxt(filepath)
@@ -81,8 +86,7 @@ if(filename.endswith('.reg')):
     F = phase_correction(F,u,v,wavel)
     F = np.conj(F)
     F = F/F[128,128]
-    ##TODO: check that the data is indeed rotated!
-    F = F[::-1,::-1]
+    #F = F[::-1,::-1] #the sampling dont let me just do this >:(
     plot_path = os.path.join(plot_dir, filename.split('.reg')[0])
 
 elif(filename.endswith('.hdf5')):
@@ -90,7 +94,7 @@ elif(filename.endswith('.hdf5')):
     F = np.array(f['phase_correction']['data'])
     F = np.conj(F)
     F = F/F[128,128]
-    F = F[::-1,::-1]
+    #F = F[::-1,::-1]
     plot_path = os.path.join(plot_dir, os.path.split(os.path.split(os.path.split(filepath)[0])[0])[1])
 
 else:
@@ -99,10 +103,12 @@ else:
 
 ###get the geometry parameters
 if((args.geo_file is None) and filename.endswith('.hdf5')):
-    geo_path = os.path.join(os.path.split(os.path.split(filepath)[0])[0], 
+    #geo_path = os.path.join(os.path.split(os.path.split(filepath)[0])[0], 
+    #                        "geometry_fit", "geo_params.npz")
+    geo_path = os.path.join(plot_path,
                             "geometry_fit", "geo_params.npz")
     if(not os.path.exists(geo_path)):
-        print("Gemetry file not found!")
+        print("Gemetry file not found at %s"%geo_path)
         sys.exit(1)
 elif(not os.path.exists(os.path.expanduser(args.geo_file))):
     print("Geometry file not given!")
@@ -150,6 +156,13 @@ panels, s_pos, s_n, s_ds, sec_vertex, B, target_pos = create_apex_geometries(r_m
                       target_distance, target_map_size, target_points,
                       batch_size=batch_size
                       )
+
+##here we do the sign invertion in the panel position
+for p in panels.keys():
+    p0 = panels[p]['p0']
+    p0[:,0] *= -1
+    p0[:,1] *= -1
+    panels[p]['p0'] = p0
 
 
 sec_offsets = jnp.array(geo_params['sec_offsets'], dtype=jnp.float32)
@@ -292,12 +305,12 @@ if __name__ == '__main__':
         log_msg = "iter:%i \t loss:%E \t time:%.3f "%(i, loss, time.time()-start)
         logging.info(log_msg)
         if(i%plot_interval==0):
-            plot_debug(params, F, target_points, plot_path, iteration)
+            plot_debug(params, F, target_points, plot_path, i)
         if(np.mean(losses[-10:]) < loss_lim):
             print("Loss limit reached at iteration %i: %E < %E"%(i, loss, loss_lim))
             break
         if(np.mean(np.abs(np.diff(losses[-10:])))< conv_lim):
-            print("Loss convergence reached at iteration %i: %E < %E"%(i, loss, np.mean(np.diff(losses[-10:]))))
+            print("Loss convergence reached at iteration %i: %E < %E"%(i, np.mean(np.abs(np.diff(losses[-10:])))), conv_lim)
             break
     print("Out if the optimization loop")
     out_params = pytree_to_numpy(params)

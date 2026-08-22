@@ -59,10 +59,10 @@ def phase_correction(F,uv,vv,wavel,d1=2.18*apu.m,d2=7.485*apu.m):
     return out
 
 
-plot_dir = os.path.expanduser(args.plot_path)
+plot_dir = os.path.abspath(os.path.expanduser(args.plot_path))
 os.makedirs(plot_dir, exist_ok=True)
 
-filepath = os.path.expanduser(args.filename)
+filepath = os.path.abspath(os.path.expanduser(args.filename))
 filename = os.path.basename(filepath)
 if(filename.endswith('.reg')):
     u,v,amp,phase = np.loadtxt(filepath)
@@ -75,7 +75,7 @@ if(filename.endswith('.reg')):
     F = np.conj(F)
     F = F/F[128,128]
     ##TODO: check that this flip is correct!
-    F = F[::-1,::-1]
+    ##F = F[::-1,::-1]
     plot_path = os.path.join(plot_dir, filename.split('.reg')[0])
 
 elif(filename.endswith('.hdf5')):
@@ -84,7 +84,7 @@ elif(filename.endswith('.hdf5')):
     F = np.conj(F)
     F = F/F[128,128]
     ##TODO: check that this flip is correct!
-    F = F[::-1,::-1]
+    ##F = F[::-1,::-1]
     plot_path = os.path.join(plot_dir, os.path.split(os.path.split(os.path.split(filepath)[0])[0])[1])
 
 else:
@@ -298,7 +298,7 @@ if __name__ == '__main__':
             print("Loss limit reached at iteration %i: %E < %E"%(i, loss, loss_lim))
             break
         if(np.mean(np.abs(np.diff(losses[-10:])))< conv_lim):
-            print("Loss convergence reached at iteration %i: %E < %E"%(i, loss, np.mean(np.diff(losses[-10:]))))
+            print("Loss convergence reached at iteration %i: %E < %E"%(i, np.mean(np.abs(np.diff(losses[-10:])))), conv_lim)
             break
 
     print("Out of the optimization loop")
