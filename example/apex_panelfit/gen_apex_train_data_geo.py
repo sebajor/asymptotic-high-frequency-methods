@@ -26,12 +26,13 @@ def pytree_to_numpy(tree):
 
 ### hyperparameters
 ##defocus in mm
-defocus = [
+defocus =[
     [0,0,-15],
     [0,0,0],
-    [0,0,15],
     [0,0,7],
+    [0,0,15],
     ]
+    
     #[0,0,-15],
     #[0,0,-7],
     #[7,0,15],
@@ -40,19 +41,22 @@ defocus = [
     #[7,0,0]
     #]
 
+seed = 123
+np.random.seed(123)
 
 sec_rotation = np.random.randn(3)*10*apu.mdeg
-sec_offsets = np.random.randn(3)*10*apu.mm
+sec_offsets = np.random.randn(3)*apu.mm
 
 horn_rotation = np.random.randn(3)*10*apu.mdeg
-horn_offsets = np.random.randn(3)*10*apu.mm
+horn_offsets = np.random.randn(3)*apu.mm
+horn_offsets[2] = 0*apu.mm
 
-edge_tapper += np.random.randm(1)*0.1*apu.dB
-horn_aperture += np.random.randn(1)*0.1*apu.mm
+edge_tapper += np.random.randn(1)[0]*0.1*apu.dB
+horn_aperture += np.random.randn(1)[0]*0.1*apu.mm
 
 
-print("sec offsets: %.4f %.4f %.4f"%(sec_offsets[0].to_value(apu.mdeg),sec_offsets[1].to_value(apu.mdeg),sec_offsets[2].to_value(apu.mdeg)))
-print("sec rotations: %.4f %.4f %.4f"%(sec_rotation[0].to_value(apu.mm),sec_rotation[1].to_value(apu.mm),sec_rotation[2].to_value(apu.mm)))
+print("sec offsets: %.4f %.4f %.4f"%(sec_offsets[0].to_value(apu.mm),sec_offsets[1].to_value(apu.mm),sec_offsets[2].to_value(apu.mm)))
+print("sec rotations: %.4f %.4f %.4f"%(sec_rotation[0].to_value(apu.mdeg),sec_rotation[1].to_value(apu.mdeg),sec_rotation[2].to_value(apu.mdeg)))
 
 print("horn offsets: %.4f %.4f %.4f"%(horn_offsets[0].to_value(apu.mm),horn_offsets[1].to_value(apu.mm),horn_offsets[2].to_value(apu.mm)))
 print("horn rotations: %.4f %.4f %.4f"%(horn_rotation[0].to_value(apu.mdeg),horn_rotation[1].to_value(apu.mdeg),horn_rotation[2].to_value(apu.mdeg)))
@@ -60,7 +64,8 @@ print("horn rotations: %.4f %.4f %.4f"%(horn_rotation[0].to_value(apu.mdeg),horn
 print("edge tapper:%.4f dB horn aperture:%.4f mm"%(edge_tapper.to_value(apu.dB), horn_aperture.to_value(apu.mm)))
 
 
-train_dir = "train_data_rotation/"
+train_dir = "train_data_geo_panels/"
+#train_dir = "train_data_geo_ideal/"
 
 #test
 os.system("export JAX_ENABLE_X64=True")
@@ -100,14 +105,15 @@ s_pos = jnp.array(s_pos.to_value(apu.m)).astype(jnp.float32)
 target_pos = jnp.array(target_pos.to_value(apu.m)).astype(jnp.float64)
 panels = jax.tree_util.tree_map(lambda x: jnp.array(x, dtype=jnp.float32), panels)
 
-##for this specific code this should be all zeros!
-coeffs = generate_start_coeffs(panels.keys(), dtype=jnp.float32)
+coeffs = generate_start_coeffs(key, panels.keys(), start_rms=start_rms, dtype=jnp.float32)
+#coeffs = generate_start_coeffs_zeros(panels.keys(), dtype=jnp.float32)
+
 s_n = jnp.array(s_n).astype(jnp.float32)
 s_ds = jnp.array(s_ds.to_value(apu.m**2)).astype(jnp.float32)
 
 horn_position = (jnp.array((0,0,B.to_value(apu.m))).T).astype(jnp.float32)
 edge_tapper= jnp.array(edge_tapper.to_value(apu.dB))
-horn_aperture = jnp.array(horn_aperture.to_value(apu.m)))
+horn_aperture = jnp.array(horn_aperture.to_value(apu.m))
 
 
 
@@ -132,7 +138,7 @@ def make_forward_function(panels, s_pos0, s_n0, s_ds, sec_vertex,
         p_pos, p_n, p_ds, deform_ms = apply_panel_deformation(panels, coeffs)
 
         E_i_kf = propagate_cylindrical_gaussian_beam_offset(edge_tapper, horn_aperture, horn_offsets, 
-                                                            horn_rotation, wavel, horn_posiion, s_pos)
+                                                            horn_rotation, wavel, horn_position, s_pos)
         ##to avoid store intermidiate states, the memory blows up
         E_s_kf = kirchhoff_fresnel_scan_remat(s_pos, -s_n, s_ds, E_i_kf, p_pos, wavel, chunk_size=batch_size, dtype=map_dtype)
         #E_p_k = kirchhoff_fresnel_scan_remat(p_pos, p_n, p_ds, E_s_kf, target_pos, wavel, chunk_size=batch_size, dtype=map_dtype)
@@ -155,16 +161,16 @@ for defoc in defocus:
     local_start = time.time()
     print(defoc)
 #sec_offsets = jnp.array([x.to_value(apu.m) for x in sec_offsets]).astype(jnp.float32)
-    subref_offsets = jnp.array(sec_offsets[0].to_value(apu.m), sec_offsets[1].to_value(apu.m), defoc[2]*1-3).astype(jnp.float32)
+    subref_offsets = jnp.array([sec_offsets[0].to_value(apu.m), sec_offsets[1].to_value(apu.m), defoc[2]*1e-3]).astype(jnp.float32)
     E = forw_function(coeffs, edge_tapper, horn_aperture,
                       horn_offsets, horn_rotation,
                       subref_offsets, sec_rotation)
-    E_host = jax.block_until_ready(E)
+    E_host, rms = jax.block_until_ready(E)
     E_out = E_host.reshape((target_points, target_points))
     E_norm = E_out/np.max(np.abs(E_out))
     name = 'defoc_'+str(defoc[0])+'_'+str(defoc[1])+'_'+str(defoc[2])
     np.savez(os.path.join(os.path.abspath(train_dir),name),
-             E = E_out,
+             E = E_norm,
              map_size = target_map_size.to_value(apu.deg),
              defocus = defoc
              )
@@ -176,6 +182,11 @@ print("save coefficients")
 coeffs_np = pytree_to_numpy(coeffs)
 np.savez(os.path.join(os.path.abspath(train_dir), 'coeffs'),
          coeffs=coeffs_np,
-         rotation=subref_rotations.to_value(apu.rad)
+         sec_rotation=sec_rotation,
+         sec_offsets=sec_offsets.to_value(apu.mm),
+         horn_offsets=horn_offsets,
+         horn_rotation=horn_rotation,
+         edge_tapper=edge_tapper,
+         horn_aperture=horn_aperture
          )
 

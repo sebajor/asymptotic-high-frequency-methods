@@ -25,7 +25,8 @@ sec_offsets = [0*apu.mm, 0*apu.mm, 15*apu.mm]
 ##since the values should be in the 1e-6, then the mse will be in 1e-12! 
 gamma = 1#5*1e7
 #gold_file = 'train_data_geo_panels/defoc_0_0_15.npz'
-gold_file = 'test_phase_corrected.npz'
+#gold_file = 'test_phase_corrected.npz' #this should be 20260502_20365
+gold_file = '20260505_21286000/phase_corrected.npz'
 
 iters = 1000#600
 map_dtype = jnp.complex128
@@ -100,7 +101,14 @@ def loss_funct(params, gold, gamma, norm_point=256*128+128):
                                      params['sec_offsets'], params['sec_rotation'])
     #pred_norm = pred/jnp.max(jnp.abs(pred))
     pred_norm = pred/pred[norm_point]
-    error = pred_norm-gold
+    #error = pred_norm-gold
+    #
+    #this one is in the aperture
+    pred_reshape = pred_norm.reshape((256,256))
+    pred_shift = jnp.fft.ifftshift(pred_reshape)
+    aperture = jnp.fft.fftshift(jnp.fft.ifft2(pred_shift)).flatten()
+    error = aperture-gold
+    ##we use the same loss either way
     loss = jnp.mean(error.real**2+error.imag**2)+gamma*jnp.mean(deform_mse)
     #jax.debug.print("jax.debug.print(y) -> {y}", y=jnp.mean(deform_mse))
     return loss
@@ -133,6 +141,10 @@ print("Training loop")
 f = np.load(gold_file, allow_pickle=1)
 #E = jnp.array(f['E'])
 E = jnp.array(np.conjugate(f['E']))
+F_shift = np.fft.ifftshift(E)
+gold_aperture = np.fft.fftshift(np.fft.ifft2(F_shift))
+
+
 losses = []
 
 train_request = input("Do you want to start the train?")
@@ -142,7 +154,7 @@ if(train_request!= 'y'):
 
 for i in range(iters):
     start = time.time()
-    params, opt_state, loss = train_step(params, opt_state, E.flatten(), gamma)
+    params, opt_state, loss = train_step(params, opt_state, gold_aperture.flatten(), gamma)
     losses.append(loss)
     print("iter:%i \t loss:%E \t time:%.3f "%(i, loss, time.time()-start))
     if((i%10) == 0):

@@ -154,15 +154,15 @@ def propagate_cylindrical_gaussian_beam_offset(
     """
     w0 = horn_aperture/jnp.sqrt(jnp.abs(10*jnp.log(10**(edge_tapper/20))))
     z_c = jnp.pi*w0**2/wavel
-    origin = pos_origin+offset
-    r_global = target_pos-origin
+    origin_offset = origin+offset
+    r_global = target_pos-origin_offset
     alpha = rotation[0]; beta = rotation[1]; gamma = rotation[2]
     R = jnp.array([[jnp.cos(alpha)*jnp.cos(beta), jnp.cos(alpha)*jnp.sin(beta)*jnp.sin(gamma)-jnp.sin(alpha)*jnp.cos(gamma), jnp.cos(alpha)*jnp.sin(beta)*jnp.cos(gamma)+jnp.sin(alpha)*jnp.sin(gamma)],
                    [jnp.sin(alpha)*jnp.cos(beta), jnp.sin(alpha)*jnp.sin(beta)*jnp.sin(gamma)+jnp.cos(alpha)*jnp.cos(gamma), jnp.sin(alpha)*jnp.sin(beta)*jnp.cos(gamma)-jnp.cos(alpha)*jnp.sin(gamma)],
                    [-jnp.sin(beta)              , jnp.cos(beta)*jnp.sin(gamma)                                             , jnp.cos(beta)*jnp.cos(gamma)                                             ]]
                   )
     ##local coordinates
-    local_pos = jnp.matmul(R, orig_sec.T).T
+    local_pos = jnp.matmul(R, r_global.T).T
     k = 2*jnp.pi/wavel
     w = w0*jnp.sqrt(1+(local_pos[:,2]/z_c)**2)
     R = local_pos[:,2]+z_c**2/local_pos[:,2]
