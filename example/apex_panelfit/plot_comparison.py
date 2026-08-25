@@ -9,10 +9,10 @@ import h5py
 #from plot_utils import plot_deformations
 from hyperparameters import *
 
-fit_filename = '20260502_20365000/images_geo_aperture_conj/images_panels_10/params.npz'
-classical_filename = '20260502_20365000/Data/data.hdf5'
+fit_filename = 'images_20260502_20365000/images_geo_aperture_conj/images_panels_10/params.npz'
+classical_filename = 'images_20260502_20365000/Data/data.hdf5'
 
-subref_filename =  '20260502_20365000/images_geo_aperture_conj/images_panels_sec_adjust/params.npz'
+subref_filename =  'images_20260502_20365000/images_geo_aperture_conj/images_panels_sec_adjust/params.npz'
 
 
 ##first we will create the apex geometry
