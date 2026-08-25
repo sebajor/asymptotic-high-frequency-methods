@@ -12,7 +12,7 @@ import argparse
 import h5py
 import logging
 import apex_utils
-
+import signal
 
 ###
 ### This code does the geometrical fitting of the measured beam pattern.
@@ -21,9 +21,15 @@ import apex_utils
 ### limit the optimization stops) and a lower limit on the loss to stop the optimization
 ###
 
+
+##set the 64 bit operations at the GPU (we need complex128 to resolve the phase
+##at the SNR that we want)
+os.system("export JAX_ENABLE_X64=True")
+jax.config.update('jax_enable_x64', True)
+
+
 ###
 ###NOTE: the map is by default inverted, bcs of the sampling we cannot just do F=F[::-1, ::-1] 
-### TODO: change the signs in the panels.. I think I need to do this from construction...
 ###
 
 
@@ -40,6 +46,9 @@ parser.add_argument('-cl', '--conv_lim', dest='conv_lim', type=float, default=1*
                     help="convergence limit")
 parser.add_argument("-ll", "--loss_lim", dest='loss_lim', type=float, default=2.1*1e-6,
                     help="lower limit of the loss")
+
+parser.add_argument("-no_stop", "--no_stop", dest="no_stop", action='store_true',
+                    help="Avoids all the stop mechanism, the optimization runs up to the max iteration")
 
 parser.add_argument("-gamma", "--gamma", dest='gamma', type=float, default=10,
                     help="lagrange multiplier for the surface error")
@@ -67,7 +76,7 @@ def phase_correction(F,uv,vv,wavel,d1=2.18*apu.m,d2=7.485*apu.m):
     correction = 2*np.pi/wavel*(d1-d2)*(1-np.cos(tetha.to_value(apu.rad)))*apu.rad
     phase = np.angle(F)*apu.rad
     phase += correction
-    ampamp = np.abs(F)
+    amp = np.abs(F)
     out = amp*np.exp(1j*phase.to_value(apu.rad))
     return out
 
@@ -85,17 +94,15 @@ if(filename.endswith('.reg')):
     v = -v.reshape((N,N))*apu.deg
     ##phase correction
     F = phase_correction(F,u,v,wavel)
-    F = np.conj(F)
     F = F/F[128,128]
-    #F = F[::-1,::-1] #the sampling dont let me just do this >:(
+    F = np.conjugate(F)
     plot_path = os.path.join(plot_dir, filename.split('.reg')[0])
 
 elif(filename.endswith('.hdf5')):
     f = h5py.File(filepath, 'r')
     F = np.array(f['phase_correction']['data'])
-    F = np.conj(F)
     F = F/F[128,128]
-    #F = F[::-1,::-1]
+    F = np.conjugate(F)
     plot_path = os.path.join(plot_dir, os.path.split(os.path.split(os.path.split(filepath)[0])[0])[1])
 
 else:
@@ -128,10 +135,6 @@ os.makedirs(plot_path, exist_ok=True)
 
 
 ####
-##set the 64 bit operations at the GPU (we need complex128 to resolve the phase
-##at the SNR that we want)
-os.system("export JAX_ENABLE_X64=True")
-jax.config.update('jax_enable_x64', True)
 
 
 learning_rate = args.learning_rate
@@ -158,12 +161,6 @@ panels, s_pos, s_n, s_ds, sec_vertex, B, target_pos = create_apex_geometries(r_m
                       batch_size=batch_size
                       )
 
-##here we do the sign invertion in the panel position
-for p in panels.keys():
-    p0 = panels[p]['p0']
-    p0[:,0] *= -1
-    p0[:,1] *= -1
-    panels[p]['p0'] = p0
 
 
 sec_offsets = jnp.array(geo_params['sec_offsets'], dtype=jnp.float32)
@@ -294,6 +291,8 @@ def pytree_to_numpy(tree):
             lambda x: np.array(x) if isinstance(x, jnp.ndarray) else x,
             tree)
 
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s")
@@ -307,12 +306,13 @@ if __name__ == '__main__':
         logging.info(log_msg)
         if(i%plot_interval==0):
             plot_debug(params, F, target_points, plot_path, i)
-        if(np.mean(losses[-10:]) < loss_lim):
-            print("Loss limit reached at iteration %i: %E < %E"%(i, loss, loss_lim))
-            break
-        if(np.mean(np.abs(np.diff(losses[-10:])))< conv_lim):
-            print("Loss convergence reached at iteration %i: %E < %E"%(i, np.mean(np.abs(np.diff(losses[-10:])))), conv_lim)
-            break
+        if(not args.no_stop):
+            if(np.mean(losses[-10:]) < loss_lim):
+                print("Loss limit reached at iteration %i: %E < %E"%(i, loss, loss_lim))
+                break
+            if(np.mean(np.abs(np.diff(losses[-10:])))< conv_lim):
+                print("Loss convergence reached at iteration %i: %E < %E"%(i, np.mean(np.abs(np.diff(losses[-10:])))), conv_lim)
+                break
     print("Out if the optimization loop")
     out_params = pytree_to_numpy(params)
     pred, deform_mse = forw_function(params['coeffs'])

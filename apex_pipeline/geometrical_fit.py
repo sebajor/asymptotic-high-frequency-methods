@@ -43,7 +43,7 @@ parser.add_argument("-ll", "--loss_lim", dest='loss_lim', type=float, default=3*
 parser.add_argument("-pi","--plot_interval",dest='plot_interval', type=int, default=10,
                    help="How often generate the debugging plots")
 parser.add_argument("-plot_path", dest='plot_path', type=str, default="~/MODULES/physical_optics/")
-parser.add_argument("-no_stop", "--no_stop", dest="no_stop", type=bool, action='store_true',
+parser.add_argument("-no_stop", "--no_stop", dest="no_stop", action='store_true',
                     help="Avoids all the stop mechanism, the optimization runs up to the max iteration")
 
 
@@ -81,8 +81,8 @@ if(filename.endswith('.reg')):
     v = -v.reshape((N,N))*apu.deg
     ##phase correction
     F = phase_correction(F,u,v,wavel)
-    F = np.conj(F)
     F = F/F[128,128]
+    F = np.conj(F)
     ##TODO: check that this flip is correct!
     ##F = F[::-1,::-1]
     plot_path = os.path.join(plot_dir, filename.split('.reg')[0])
@@ -90,8 +90,8 @@ if(filename.endswith('.reg')):
 elif(filename.endswith('.hdf5')):
     f = h5py.File(filepath, 'r')
     F = np.array(f['phase_correction']['data'])
-    F = np.conj(F)
     F = F/F[128,128]
+    F = np.conjugate(F)
     f.close()
     plot_path = os.path.join(plot_dir, os.path.split(os.path.split(os.path.split(filepath)[0])[0])[1])
 
@@ -298,12 +298,13 @@ if __name__ == '__main__':
         logging.info(log_msg)
         if(i%plot_interval==0):
             plot_debug(params, gold_aperture, F, target_points, plot_path, i)
-        if(np.mean(losses[-10:]) < loss_lim):
-            print("Loss limit reached at iteration %i: %E < %E"%(i, loss, loss_lim))
-            break
-        if(np.mean(np.abs(np.diff(losses[-10:])))< conv_lim):
-            print("Loss convergence reached at iteration %i: %E < %E"%(i, np.mean(np.abs(np.diff(losses[-10:])))), conv_lim)
-            break
+        if(not args.no_stop):
+            if(np.mean(losses[-10:]) < loss_lim):
+                print("Loss limit reached at iteration %i: %E < %E"%(i, loss, loss_lim))
+                break
+            if(np.mean(np.abs(np.diff(losses[-10:])))< conv_lim):
+                print("Loss convergence reached at iteration %i: %E < %E"%(i, np.mean(np.abs(np.diff(losses[-10:])))), conv_lim)
+                break
 
     print("Out of the optimization loop")
     out_params = pytree_to_numpy(params)
