@@ -21,6 +21,12 @@ import logging
 ###
 
 
+##set the 64 bit operations at the GPU (we need complex128 to resolve the phase
+##at the SNR that we want)
+os.system("export JAX_ENABLE_X64=True")
+jax.config.update('jax_enable_x64', True)
+
+
 parser = argparse.ArgumentParser(
     description="Geometrical fit for apex hologrpahy pipeline")
 
@@ -37,6 +43,9 @@ parser.add_argument("-ll", "--loss_lim", dest='loss_lim', type=float, default=3*
 parser.add_argument("-pi","--plot_interval",dest='plot_interval', type=int, default=10,
                    help="How often generate the debugging plots")
 parser.add_argument("-plot_path", dest='plot_path', type=str, default="~/MODULES/physical_optics/")
+parser.add_argument("-no_stop", "--no_stop", dest="no_stop", type=bool, action='store_true',
+                    help="Avoids all the stop mechanism, the optimization runs up to the max iteration")
+
 
 ###
 ###
@@ -83,8 +92,7 @@ elif(filename.endswith('.hdf5')):
     F = np.array(f['phase_correction']['data'])
     F = np.conj(F)
     F = F/F[128,128]
-    ##TODO: check that this flip is correct!
-    ##F = F[::-1,::-1]
+    f.close()
     plot_path = os.path.join(plot_dir, os.path.split(os.path.split(os.path.split(filepath)[0])[0])[1])
 
 else:
@@ -101,10 +109,6 @@ E_shift = np.fft.ifftshift(F)
 gold_aperture = np.fft.fftshift(np.fft.ifft2(E_shift))
 
 
-##set the 64 bit operations at the GPU (we need complex128 to resolve the phase
-##at the SNR that we want)
-os.system("export JAX_ENABLE_X64=True")
-jax.config.update('jax_enable_x64', True)
 
 
 learning_rate = args.learning_rate
