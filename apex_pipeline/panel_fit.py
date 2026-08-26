@@ -322,7 +322,7 @@ if __name__ == '__main__':
     
     ##TODO: fit a global polynomial here and save the parameters to use it later!
 
-    pol = large_scale_fitting(panels, coeffs, pol_deg)
+    pol = large_scale_fitting(panels, unflip_params, pol_deg)
     np.savez(os.path.join(plot_path, "panles_params.npz"),
             flip_params=out_params,
             params = unflip_params,

@@ -16,13 +16,14 @@ def flip_panels_coeffs(coeffs_flipped):
     over that flipped data >:(
     """
     coeffs_real = dict()
-    N       = [   12,    12,    24,    24,    48,    48,    48,    48       ],
+    N       = [   12,    12,    24,    24,    48,    48,    48,    48       ]
     for p in range(len(N)):
         for n in range(N[p]//2):
             p_top = str((p+1)*100+n+1)
             p_bottom = str((p+1)*100+n+1+N[p]//2)
             coeffs_real[p_top] = coeffs_flipped[p_bottom]
             coeffs_real[p_bottom] = coeffs_flipped[p_top]
+    coeffs_real['fake'] = np.zeros(5)
     return coeffs_real
 
 def large_scale_fitting(panels, coeffs, pol_deg=4):
