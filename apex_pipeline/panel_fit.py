@@ -319,13 +319,18 @@ if __name__ == '__main__':
     F_pred = pred/pred[257*128]
     F_pred = np.array(F_pred).reshape((target_points, target_points))
     unflip_params = apex_utils.flip_panels_coeffs(out_params)
+    
+    ##TODO: fit a global polynomial here and save the parameters to use it later!
 
+    pol = large_scale_fitting(panels, coeffs, pol_deg)
     np.savez(os.path.join(plot_path, "panles_params.npz"),
             flip_params=out_params,
             params = unflip_params,
             losses=losses,
             gamma= gamma,
             F_pred=F_pred,
-            F_gold=F)
+            F_gold=F,
+            large_scale_coeffs = pol.parameters
+             )
 
 
