@@ -303,7 +303,7 @@ if __name__ == '__main__':
                 print("Loss limit reached at iteration %i: %E < %E"%(i, loss, loss_lim))
                 break
             if(np.mean(np.abs(np.diff(losses[-10:])))< conv_lim):
-                print("Loss convergence reached at iteration %i: %E < %E"%(i, np.mean(np.abs(np.diff(losses[-10:])))), conv_lim)
+                print("Loss convergence reached at iteration %i: %E < %E"%(i, np.mean(np.abs(np.diff(losses[-10:]))), conv_lima))
                 break
 
     print("Out of the optimization loop")
