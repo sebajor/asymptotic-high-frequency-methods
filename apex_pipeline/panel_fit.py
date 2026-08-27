@@ -121,7 +121,7 @@ if((args.geo_file is None) and filename.endswith('.hdf5')):
     geo_path = os.path.join(plot_path,
                             "geometry_fit")#, "geo_params.npz")
     dirs = os.listdir(geo_path)
-    geo_path = os.path.join(geo_path, str(len(dirs)), "geo_params.npz")
+    geo_path = os.path.join(geo_path, "%03i"%(len(dirs)-1), "geo_params.npz")
     if(not os.path.exists(geo_path)):
         print("Gemetry file not found at %s"%geo_path)
         sys.exit(1)
@@ -132,7 +132,7 @@ else:
     geo_path = os.path.expanduser(args.geo_file)
 
 geo_params = np.load(geo_path, allow_pickle=1)['params'].tolist()
-print("Using geometry parameters from %s"%geo_params)
+print("Using geometry parameters from %s"%geo_path)
 
 
 print("Creating the plot directories at %s"%plot_path)
@@ -197,7 +197,6 @@ if(args.panel_file is None):
     coeffs = generate_start_coeffs(key, panels.keys(), start_rms=start_rms, dtype=jnp.float32)
 else:
     panel_path= os.path.abspath(os.path.expanduser(args.panel_file))
-    panel_path= os.path.basename(panel_path)
     panel = np.load(panel_path, allow_pickle=1)
     print("Importing coeff deformations from %s"%panel_path)
     coeffs = panel['params'].tolist()['coeffs']
@@ -342,7 +341,7 @@ if __name__ == '__main__':
     unflip_params = apex_utils.flip_panels_coeffs(out_params['coeffs'])
 
 
-    pol = large_scale_fitting(panels, unflip_params, pol_deg)
+    pol = apex_utils.large_scale_fitting(panels, unflip_params, pol_deg)
     np.savez(os.path.join(plot_path, "panels_params.npz"),
             flip_params=out_params,
             params = unflip_params,
@@ -356,12 +355,13 @@ if __name__ == '__main__':
     ###CAREFULL!: to keep doing later optimizations you need to use the flipped 
     ##parameters!!! The whole optimization is flipped so you must continue 
     ##with those
-    pol = large_scale_fitting(panels, out_params['coeffs'], pol_deg)
-    clean_coeffs = apex_utitls.fit_coeffs_large_scale_removal(panels, out_params['coeffs'], pol)
+    pol = apex_utils.large_scale_fitting(panels, out_params['coeffs'], pol_deg)
+    clean_coeffs = apex_utils.fit_coeffs_large_scale_removal(panels, out_params['coeffs'], pol)
+    params_flip = {"coeffs": clean_coeffs}
 
 
-    np.savez(os.path.join(plot_path, "panels_params_flipped.npz",
-            params = 
+    np.savez(os.path.join(plot_path, "panels_params_flipped.npz"),
+            params = params_flip,
             raw_params = out_params,
             losses=losses,
             gamma= gamma,

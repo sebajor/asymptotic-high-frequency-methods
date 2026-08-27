@@ -165,7 +165,7 @@ if(args.geo_file is None):
 else:
     ##check that the file exists
     geo_path= os.path.abspath(os.path.expanduser(args.geo_file))
-    geo_path= os.path.basename(geo_path)
+    print(geo_path)
     geo = np.load(geo_path, allow_pickle=1)
     print("Import geometrical parameters from %s"%geo_path)
     geo_params = geo['params'].tolist()
@@ -197,7 +197,6 @@ if(args.panel_file is None):
     print("Done")
 else:
     panel_path= os.path.abspath(os.path.expanduser(args.panel_file))
-    panel_path= os.path.basename(panel_path)
     panel = np.load(panel_path, allow_pickle=1)
     print("Importing coeff deformations from %s"%panel_path)
     coeffs = panel['params'].tolist()['coeffs']

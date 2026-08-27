@@ -58,7 +58,7 @@ def deform_function(x,y, coeffs):
 
 
 def plane_fit(params, z, x_,y_):
-    panel_model,_,_ = deform_func(x_,y_, params)
+    panel_model,_,_ = deform_function(x_,y_, params)
     error = np.abs(panel_model-z)
     return error
 
@@ -76,8 +76,8 @@ def fit_coeffs_large_scale_removal(panels, coeffs, pol):
     for name in panels.keys():
         if(name == 'fake'):
             continue
-        x = np.concatenate([x_data, panels[name]['p0'][:,0]])
-        y = np.concatenate([y_data, panels[name]['p0'][:,1]])
+        x = panels[name]['p0'][:,0]
+        y = panels[name]['p0'][:,1]
         x_ = panels[name]['x_']
         y_ = panels[name]['y_']
         deforms, df_dx, df_dy = deform_function(x_,y_ , coeffs[name])
