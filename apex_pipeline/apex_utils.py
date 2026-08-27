@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from astropy.modeling import models, fitting
+from scipy import optimize
 
 
 def flip_panels_coeffs(coeffs_flipped):
@@ -55,6 +56,14 @@ def deform_function(x,y, coeffs):
     #If im not mistaken out should be in mts, df_dx and df_dy dimmensionless..
     return out, df_dx, df_dy
 
+
+def plane_fit(params, z, x_,y_):
+    panel_model,_,_ = deform_func(x_,y_, params)
+    error = np.abs(panel_model-z)
+    return error
+
+
+
 def fit_coeffs_large_scale_removal(panels, coeffs, pol):
     """
     Iterates over all the panels, compute the deformation substract the 
@@ -69,11 +78,27 @@ def fit_coeffs_large_scale_removal(panels, coeffs, pol):
             continue
         x = np.concatenate([x_data, panels[name]['p0'][:,0]])
         y = np.concatenate([y_data, panels[name]['p0'][:,1]])
-        deforms, df_dx, df_dy = deform_function(panels[name]['x_'], panels[name]['y_'], coeffs[name])
+        x_ = panels[name]['x_']
+        y_ = panels[name]['y_']
+        deforms, df_dx, df_dy = deform_function(x_,y_ , coeffs[name])
         z = deforms-pol(x,y)
-        
-
-
+        panel_params = coeffs[name]#np.zeros(5)
+        res_lsq = optimize.least_squares(
+                fun=plane_fit,
+                x0=panel_params,
+                args=(
+                    z,
+                    x_,
+                    y_
+                ),
+                method='trf',
+                tr_solver='exact',
+                loss='linear'
+                )
+        par = res_lsq.x
+        out_coeffs[name] = np.array(par)
+    out_coeffs['fake'] = np.zeros(5)
+    return out_coeffs
 
 
 

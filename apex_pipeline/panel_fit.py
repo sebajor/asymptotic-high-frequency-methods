@@ -341,19 +341,6 @@ if __name__ == '__main__':
     F_pred = np.array(F_pred).reshape((target_points, target_points))
     unflip_params = apex_utils.flip_panels_coeffs(out_params['coeffs'])
 
-    ###CAREFULL!: to keep doing later optimizations you need to use the flipped 
-    ##parameters!!! The whole optimization is flipped so you must continue 
-    ##with those
-    pol = large_scale_fitting(panels, out_params, pol_deg)
-    np.savez(os.path.join(plot_path, "panels_params_flipped.npz",
-            params = out_params,
-            losses=losses,
-            gamma= gamma,
-            F_pred=F_pred,
-            F_gold=F,
-            large_scale_coeffs = pol.parameters
-             )
-
 
     pol = large_scale_fitting(panels, unflip_params, pol_deg)
     np.savez(os.path.join(plot_path, "panels_params.npz"),
@@ -365,5 +352,24 @@ if __name__ == '__main__':
             F_gold=F,
             large_scale_coeffs = pol.parameters
              )
+
+    ###CAREFULL!: to keep doing later optimizations you need to use the flipped 
+    ##parameters!!! The whole optimization is flipped so you must continue 
+    ##with those
+    pol = large_scale_fitting(panels, out_params['coeffs'], pol_deg)
+    clean_coeffs = apex_utitls.fit_coeffs_large_scale_removal(panels, out_params['coeffs'], pol)
+
+
+    np.savez(os.path.join(plot_path, "panels_params_flipped.npz",
+            params = 
+            raw_params = out_params,
+            losses=losses,
+            gamma= gamma,
+            F_pred=F_pred,
+            F_gold=F,
+            large_scale_coeffs = pol.parameters
+             )
+
+
 
 
