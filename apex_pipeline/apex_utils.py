@@ -47,6 +47,37 @@ def large_scale_fitting(panels, coeffs, pol_deg=4):
 
 
 
+def deform_function(x,y, coeffs):
+    out = (coeffs[0]+coeffs[1]*x+coeffs[2]*y+
+        coeffs[3]*(x**2+y**2)+coeffs[4]*(x**2-y**2))
+    df_dx = coeffs[1]+2*(coeffs[3]+coeffs[4])*x
+    df_dy = coeffs[2]+2*(coeffs[3]-coeffs[4])*y
+    #If im not mistaken out should be in mts, df_dx and df_dy dimmensionless..
+    return out, df_dx, df_dy
+
+def fit_coeffs_large_scale_removal(panels, coeffs, pol):
+    """
+    Iterates over all the panels, compute the deformation substract the 
+    large scale fitted polynomial, with this new surface do a fitting to
+    get the coefficients of this new surface
+
+    pol: astropy.models.Polynomial2D
+    """
+    out_coeffs = dict()
+    for name in panels.keys():
+        if(name == 'fake'):
+            continue
+        x = np.concatenate([x_data, panels[name]['p0'][:,0]])
+        y = np.concatenate([y_data, panels[name]['p0'][:,1]])
+        deforms, df_dx, df_dy = deform_function(panels[name]['x_'], panels[name]['y_'], coeffs[name])
+        z = deforms-pol(x,y)
+        
+
+
+
+
+
+
 
 ###
 ### Ploting codes 
@@ -215,13 +246,6 @@ def cartesian_to_panel_coord(x,y, panel_id, foci):
     return x_, y_
 
 
-def deform_function(x,y, coeffs):
-    out = (coeffs[0]+coeffs[1]*x+coeffs[2]*y+
-        coeffs[3]*(x**2+y**2)+coeffs[4]*(x**2-y**2))
-    df_dx = coeffs[1]+2*(coeffs[3]+coeffs[4])*x
-    df_dy = coeffs[2]+2*(coeffs[3]-coeffs[4])*y
-    #If im not mistaken out should be in mts, df_dx and df_dy dimmensionless..
-    return out, df_dx, df_dy
 
 
 #TODO:CHECK APEX_generate_screw_table, cartesian_to_panel_coord and get_APEX_panel_center!!!!!

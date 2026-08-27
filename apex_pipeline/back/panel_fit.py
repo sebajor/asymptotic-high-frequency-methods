@@ -57,9 +57,6 @@ parser.add_argument("-gamma", "--gamma", dest='gamma', type=float, default=10,
 parser.add_argument("-geo_file", "--geo_file", dest='geo_file', type=str, default=None,
                     help="Geometry file. If None and you set a hdf5 file as filename the code checks for it in the standard location")
 
-parser.add_argument("-panel_file", "--panel_file", dest='panel_file', type=str, default=None,
-                    help="Panel deformation file (.npz). If None just start the coefficients at random")
-
 parser.add_argument("-pi","--plot_interval",dest='plot_interval', type=int, default=10,
                    help="How often generate the debugging plots")
 parser.add_argument("-plot_path", dest='plot_path', type=str, default="~/MODULES/physical_optics/")
@@ -115,13 +112,10 @@ else:
 
 ###get the geometry parameters
 if((args.geo_file is None) and filename.endswith('.hdf5')):
-    print("geo_file not set, looking for the last geometrical fit..")
     #geo_path = os.path.join(os.path.split(os.path.split(filepath)[0])[0], 
     #                        "geometry_fit", "geo_params.npz")
     geo_path = os.path.join(plot_path,
-                            "geometry_fit")#, "geo_params.npz")
-    dirs = os.listdir(geo_path)
-    geo_path = os.path.join(geo_path, str(len(dirs)), "geo_params.npz")
+                            "geometry_fit", "geo_params.npz")
     if(not os.path.exists(geo_path)):
         print("Gemetry file not found at %s"%geo_path)
         sys.exit(1)
@@ -132,7 +126,6 @@ else:
     geo_path = os.path.expanduser(args.geo_file)
 
 geo_params = np.load(geo_path, allow_pickle=1)['params'].tolist()
-print("Using geometry parameters from %s"%geo_params)
 
 
 print("Creating the plot directories at %s"%plot_path)
@@ -140,10 +133,6 @@ os.makedirs(plot_path, exist_ok=True)
 plot_path = os.path.join(plot_path, 'panel_fit')
 os.makedirs(plot_path, exist_ok=True)
 
-###check if exists another iteration
-dirs = os.listdir(plot_path)
-plot_path = os.path.join(plot_path, "%03d"%(len(dirs)))
-os.makedirs(plot_path, exist_ok=True)
 
 
 ####
@@ -185,24 +174,15 @@ horn_aperture = jnp.array(geo_params['horn_aperture'], dtype=jnp.float32)
 
 #convert the data into jnp arrays
 s_pos = jnp.array(s_pos.to_value(apu.m)).astype(jnp.float32)
+##the target positions affect the dynamic range of the output..
+target_pos = jnp.array(target_pos.to_value(apu.m)).astype(jnp.float64)
+
+
+panels = jax.tree_util.tree_map(lambda x: jnp.array(x, dtype=jnp.float32), panels)
+coeffs = generate_start_coeffs(key, panels.keys(), start_rms=start_rms, dtype=jnp.float32)
 s_n = jnp.array(s_n).astype(jnp.float32)
 s_ds = jnp.array(s_ds.to_value(apu.m**2)).astype(jnp.float32)
 horn_position = (jnp.array((0,0,B.to_value(apu.m))).T).astype(jnp.float32)
-##the target positions affect the dynamic range of the output..
-target_pos = jnp.array(target_pos.to_value(apu.m)).astype(jnp.float64)
-panels = jax.tree_util.tree_map(lambda x: jnp.array(x, dtype=jnp.float32), panels)
-
-if(args.panel_file is None):
-    print("Using random coefficients for panel deformations")
-    coeffs = generate_start_coeffs(key, panels.keys(), start_rms=start_rms, dtype=jnp.float32)
-else:
-    panel_path= os.path.abspath(os.path.expanduser(args.panel_file))
-    panel_path= os.path.basename(panel_path)
-    panel = np.load(panel_path, allow_pickle=1)
-    print("Importing coeff deformations from %s"%panel_path)
-    coeffs = panel['params'].tolist()['coeffs']
-    print("Done")
-
 
 
 
@@ -340,23 +320,11 @@ if __name__ == '__main__':
     F_pred = pred/pred[257*128]
     F_pred = np.array(F_pred).reshape((target_points, target_points))
     unflip_params = apex_utils.flip_panels_coeffs(out_params['coeffs'])
-
-    ###CAREFULL!: to keep doing later optimizations you need to use the flipped 
-    ##parameters!!! The whole optimization is flipped so you must continue 
-    ##with those
-    pol = large_scale_fitting(panels, out_params, pol_deg)
-    np.savez(os.path.join(plot_path, "panels_params_flipped.npz",
-            params = out_params,
-            losses=losses,
-            gamma= gamma,
-            F_pred=F_pred,
-            F_gold=F,
-            large_scale_coeffs = pol.parameters
-             )
-
+    
+    ##TODO: fit a global polynomial here and save the parameters to use it later!
 
     pol = large_scale_fitting(panels, unflip_params, pol_deg)
-    np.savez(os.path.join(plot_path, "panels_params.npz"),
+    np.savez(os.path.join(plot_path, "panles_params.npz"),
             flip_params=out_params,
             params = unflip_params,
             losses=losses,

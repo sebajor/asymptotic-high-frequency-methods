@@ -33,12 +33,6 @@ parser = argparse.ArgumentParser(
 parser.add_argument('-f', '--filename', dest='filename' , type=str,
                     help="Input filename should be a .reg or .hdf5 output of the fourier pipeline")
 
-parser.add_argument("-geo_file", "--geo_file", dest='geo_file', type=str, default=None,
-                    help="Geometry file (.npz). If None just use the default hyperparameters.")
-
-parser.add_argument("-panel_file", "--panel_file", dest='panel_file', type=str, default=None,
-                    help="Panel deformation file (.npz). If None just start the coefficients at zero")
-
 parser.add_argument('-lr', '--learn_rate', dest='learning_rate', type=float, default=1e-4, 
                     help="learning rate for the optimizer")
 parser.add_argument('-mi', '--max_iters', dest='max_iters', type=int, default=1000,
@@ -111,15 +105,6 @@ os.makedirs(plot_path, exist_ok=True)
 plot_path = os.path.join(plot_path, 'geometry_fit')
 os.makedirs(plot_path, exist_ok=True)
 
-###check if exists another iteration
-dirs = os.listdir(plot_path)
-plot_path = os.path.join(plot_path, "%03d"%(len(dirs)))
-os.makedirs(plot_path, exist_ok=True)
-
-
-
-
-
 ##computing the target aperture
 E_shift = np.fft.ifftshift(F)
 gold_aperture = np.fft.fftshift(np.fft.ifft2(E_shift))
@@ -152,56 +137,25 @@ panels, s_pos, s_n, s_ds, sec_vertex, B, target_pos = create_apex_geometries(r_m
 
 
 #convert the data into jnp arrays
-if(args.geo_file is None):
-    print("Using hyperparameters geometrical values")
-    horn_offsets = jnp.array([x.to_value(apu.m) for x in horn_offsets]).astype(jnp.float32)
-    horn_rotation = jnp.array([x.to_value(apu.rad) for x in horn_rotation]).astype(jnp.float32)
-    edge_tapper= jnp.array(edge_tapper.to_value(apu.dB))
-    horn_aperture = jnp.array(horn_aperture.to_value(apu.m))
-    sec_offsets = jnp.array([x.to_value(apu.m) for x in sec_offsets]).astype(jnp.float32)
-    sec_rotation = jnp.array([x.to_value(apu.rad) for x in sec_rotation]).astype(jnp.float32)
-    print("Done")
-
-else:
-    ##check that the file exists
-    geo_path= os.path.abspath(os.path.expanduser(args.geo_file))
-    geo_path= os.path.basename(geo_path)
-    geo = np.load(geo_path, allow_pickle=1)
-    print("Import geometrical parameters from %s"%geo_path)
-    geo_params = geo['params'].tolist()
-    horn_offsets = jnp.array(geo_params['horn_offsets']).astype(jnp.float32)
-    horn_rotation = jnp.array(geo_params['horn_rotation']).astype(jnp.float32)
-    edge_tapper= jnp.array(geo_params['edge_tapper'])
-    horn_aperture = jnp.array(geo_params['horn_aperture'])
-    sec_offsets = jnp.array(geo_params['sec_offsets']).astype(jnp.float32)
-    sec_rotation = jnp.array(geo_params['sec_rotation']).astype(jnp.float32)
-    print("Done")
-
-
+horn_offsets = jnp.array([x.to_value(apu.m) for x in horn_offsets]).astype(jnp.float32)
+horn_rotation = jnp.array([x.to_value(apu.rad) for x in horn_rotation]).astype(jnp.float32)
+sec_offsets = jnp.array([x.to_value(apu.m) for x in sec_offsets]).astype(jnp.float32)
+sec_rotation = jnp.array([x.to_value(apu.rad) for x in sec_rotation]).astype(jnp.float32)
 
 
 s_pos = jnp.array(s_pos.to_value(apu.m)).astype(jnp.float32)
-s_n = jnp.array(s_n).astype(jnp.float32)
-s_ds = jnp.array(s_ds.to_value(apu.m**2)).astype(jnp.float32)
-horn_position = (jnp.array((0,0,B.to_value(apu.m))).T).astype(jnp.float32)
 ##the target positions affect the dynamic range of the output..
-
 target_pos = jnp.array(target_pos.to_value(apu.m)).astype(jnp.float64)
 panels = jax.tree_util.tree_map(lambda x: jnp.array(x, dtype=jnp.float32), panels)
 
+##for this specific code this should be all zeros!
+coeffs = generate_start_coeffs_zeros(panels.keys(), dtype=jnp.float32)
+s_n = jnp.array(s_n).astype(jnp.float32)
+s_ds = jnp.array(s_ds.to_value(apu.m**2)).astype(jnp.float32)
 
-if(args.panel_file is None):
-    print("Using all zeros coefficients for the panel deformation")
-    ##for this specific code this should be all zeros!
-    coeffs = generate_start_coeffs_zeros(panels.keys(), dtype=jnp.float32)
-    print("Done")
-else:
-    panel_path= os.path.abspath(os.path.expanduser(args.panel_file))
-    panel_path= os.path.basename(panel_path)
-    panel = np.load(panel_path, allow_pickle=1)
-    print("Importing coeff deformations from %s"%panel_path)
-    coeffs = panel['params'].tolist()['coeffs']
-    print("Done")
+horn_position = (jnp.array((0,0,B.to_value(apu.m))).T).astype(jnp.float32)
+edge_tapper= jnp.array(edge_tapper.to_value(apu.dB))
+horn_aperture = jnp.array(horn_aperture.to_value(apu.m))
 
 
 ##create the forward function
