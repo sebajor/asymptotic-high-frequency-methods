@@ -36,7 +36,7 @@ parser.add_argument('-lr', '--learn_rate', dest='learning_rate', type=float, def
                     help="learning rate for the optimizer")
 parser.add_argument('-mi', '--max_iters', dest='max_iters', type=int, default=1000,
                     help="maximum iterations of the optimization")
-parser.add_argument('-cl', '--conv_lim', dest='conv_lim', type=float, default=4*1e-14,
+parser.add_argument('-cl', '--conv_lim', dest='conv_lim', type=float, default=1*1e-15,
                     help="convergence limit")
 parser.add_argument("-ll", "--loss_lim", dest='loss_lim', type=float, default=3*1e-11,
                     help="lower limit of the loss")
@@ -303,7 +303,7 @@ if __name__ == '__main__':
                 print("Loss limit reached at iteration %i: %E < %E"%(i, loss, loss_lim))
                 break
             if(np.mean(np.abs(np.diff(losses[-10:])))< conv_lim):
-                print("Loss convergence reached at iteration %i: %E < %E"%(i, np.mean(np.abs(np.diff(losses[-10:]))), conv_lima))
+                print("Loss convergence reached at iteration %i: %E < %E"%(i, np.mean(np.abs(np.diff(losses[-10:]))), conv_lim))
                 break
 
     print("Out of the optimization loop")

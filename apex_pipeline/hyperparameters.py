@@ -36,7 +36,7 @@ horn_rotation = [0*apu.mdeg, 0*apu.mdeg, 0*apu.mdeg]
 
 
 ##offset of the secondary from nominal position (this should be a parameter, when optimizing)
-sec_offsets = [0*apu.mm, 0*apu.mm, 15*apu.mm]
+sec_offsets = [0*apu.mm, 0*apu.mm, 15.3*apu.mm]
 sec_rotation = [0*apu.mdeg, 0*apu.mdeg, 0*apu.mdeg]
 
 

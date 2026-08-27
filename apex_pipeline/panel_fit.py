@@ -31,6 +31,7 @@ jax.config.update('jax_enable_x64', True)
 ###
 ###NOTE: the map is by default inverted, bcs of the sampling we cannot just do F=F[::-1, ::-1] 
 ###
+pol_deg =4
 
 
 parser = argparse.ArgumentParser(
@@ -297,7 +298,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s")
     losses = []
-    print("Starting Geometrical fitting")
+    print("Starting Panel fitting")
     for i in range(args.max_iters):
         start = time.time()
         params, opt_state, loss = train_step(params, opt_state, F.flatten(), gamma)
@@ -318,7 +319,7 @@ if __name__ == '__main__':
     pred, deform_mse = forw_function(params['coeffs'])
     F_pred = pred/pred[257*128]
     F_pred = np.array(F_pred).reshape((target_points, target_points))
-    unflip_params = apex_utils.flip_panels_coeffs(out_params)
+    unflip_params = apex_utils.flip_panels_coeffs(out_params['coeffs'])
     
     ##TODO: fit a global polynomial here and save the parameters to use it later!
 
